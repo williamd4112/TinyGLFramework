@@ -17,9 +17,9 @@ namespace tiny_gl
 		void AttachShader(GLShader & shader);
 		void Link();
 		void Use();
-		void Render(const GLScene & scene);
+		virtual void Render(const GLScene & scene);
 		GLuint GetLocation(std::string name) { return glGetUniformLocation(mProgramId, name.c_str()); }
-	private:
+	protected:
 		GLuint mProgramId;
 	};
 
