@@ -1,8 +1,6 @@
 #version 410
 
 layout(location = 0) out vec4 fragColor;
-layout(location = 1) out vec4 fragColor1;
-layout(location = 2) out vec4 fragColor2;
 
 in vec3 vv3normal;
 in vec2 vv2texcoord;
@@ -12,6 +10,7 @@ uniform sampler2D sampler;
 in vec3 vv3pos;
 
 struct LightSourceParameters {
+	int type;
 	vec4 ambient;
 	vec4 diffuse;
 	vec4 specular;
@@ -124,5 +123,7 @@ void main() {
 	//gl_FragColor = vec4(1.0,0.0,0.0,1.0);
 
 	vec4 color = texture2D(sampler, vv2texcoord.st);
+	if(color.a < 0.5)
+		discard;
 	fragColor = color;
 }

@@ -243,3 +243,13 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+
+# Obj, png
+.obj
+.mtl
+.FBX
+.png
+.tga
+.dds
+.jpg
+.bmp

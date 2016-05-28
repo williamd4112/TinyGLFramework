@@ -11,6 +11,7 @@ static int wndWidth, wndHeight;
 
 static GLShaderProgram gShaderProg;
 static GLScene gScene;
+static GLRenderPipeline gPipeline;
 static MouseControl gMouse;
 
 static void Display();
@@ -20,8 +21,11 @@ static void Keyboard(unsigned char key, int x, int y);
 static void Mouse(int button, int state, int x, int y);
 static void PassiveMouse(int x, int y);
 
+static void RenderSponza(const GLShaderProgram &, const GLScene &);
+static void RenderFBO(const GLShaderProgram &, const GLFrameBufferObject &);
 static void SetupShaderProgram();
 static void SetupScene();
+static void SetupPipeline();
 
 int main(int argc, char *argv[])
 {
@@ -41,6 +45,7 @@ int main(int argc, char *argv[])
 
 	SetupShaderProgram();
 	SetupScene();
+	SetupPipeline();
 
 	glutDisplayFunc(Display);
 	glutReshapeFunc(Reshape);
@@ -48,7 +53,7 @@ int main(int argc, char *argv[])
 	glutKeyboardFunc(Keyboard);
 	glutMouseFunc(Mouse);
 	glutMotionFunc(PassiveMouse);
-
+	
 	glutMainLoop();
 
 	return 0;
@@ -56,7 +61,7 @@ int main(int argc, char *argv[])
 
 void Display()
 {
-	gShaderProg.Render(gScene);
+	gPipeline.Render(wndWidth, wndHeight);
 	glutSwapBuffers();
 }
 
@@ -65,6 +70,8 @@ void Reshape(int w, int h)
 	glViewport(0, 0, w, h);
 	wndWidth = w;
 	wndHeight = h;
+
+	gScene.GetCamera<GLPerspectiveCamera>().SetAspect((float)w / (float)h);
 }
 
 void Timer(int val)
@@ -136,11 +143,118 @@ void PassiveMouse(int x, int y)
 	}
 }
 
+void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
+{
+#define MATERIAL_NUM_PROPS 4
+#define POS_MAT_AMBIENT 0
+#define POS_MAT_DIFFUSE 1
+#define POS_MAT_SPECULAR 2
+#define POS_MAT_SHININESS 3
+
+	static const char *material_loc_str[] =
+	{
+		"ambient",
+		"diffuse",
+		"specular",
+		"shininess"
+	};
+
+	program.Use();
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	GLuint uLocMVP = program.GetLocation("mvp");
+	GLuint uLocM = program.GetLocation("M");
+	GLuint uLocV = program.GetLocation("V");
+	GLuint uLocP = program.GetLocation("P");
+	GLuint uLocN = program.GetLocation("N");
+	GLuint uLocE = program.GetLocation("E");
+	GLuint iLocMaterial[MATERIAL_NUM_PROPS];
+	
+	char str[256];
+	for (int i = 0; i < MATERIAL_NUM_PROPS; i++)
+	{
+		sprintf(str, "Material.%s", material_loc_str[i]);
+		iLocMaterial[i] = program.GetLocation(str);
+	}
+
+	GLCamera & camera = scene.GetCamera();
+	const std::vector<GLObject *> & objects = scene.GetObjects();
+	
+	for (int i = 0; i < objects.size(); i++)
+	{
+		GLMeshObject * model = static_cast<GLMeshObject *>((objects[i]));
+
+		glm::mat4 &m = model->GetTransform().GetTransformMatrix();
+		glm::mat4 v = camera.GetViewMatrix();
+		glm::mat4 p = camera.GetProjectionMatrix();
+		glm::mat4 &vp = camera.GetViewProjectionMatrix();
+		glm::mat4 n = transpose(inverse(v * m));
+
+		glm::mat4 mvp = vp * m * glm::mat4(1.0);
+		glUniformMatrix4fv(uLocMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+		glUniformMatrix4fv(uLocM, 1, GL_FALSE, glm::value_ptr(m));
+		glUniformMatrix4fv(uLocV, 1, GL_FALSE, glm::value_ptr(v));
+		glUniformMatrix4fv(uLocP, 1, GL_FALSE, glm::value_ptr(p));
+		glUniformMatrix4fv(uLocN, 1, GL_FALSE, glm::value_ptr(n));
+		glUniform3fv(uLocE, 1, glm::value_ptr(camera.GetTransform().Position()));
+
+		glEnableVertexAttribArray(0);
+		glEnableVertexAttribArray(1);
+		glEnableVertexAttribArray(2);
+
+		const GLMesh & mesh = model->Mesh();
+		const std::vector<tiny_gl::GLMesh::group_t> & groups = mesh.Groups();
+		for (int j = 0; j < groups.size(); j++)
+		{
+			const tiny_gl::GLMesh::group_t & group = groups[j];
+
+			glBindVertexArray(group.vaoid);
+			for (int k = 0; k < group.indexGroups.size(); k++)
+			{
+				GLint matid = group.indexGroups[k].matid;
+				GLuint ibo = group.indexGroups[k].ibo;
+				tinyobj::material_t mat = mesh.Materials()[matid];
+
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, mesh.Textures()[matid].diffuseid);
+
+				glUniform4fv(iLocMaterial[POS_MAT_AMBIENT], 1, mat.ambient);
+				glUniform4fv(iLocMaterial[POS_MAT_DIFFUSE], 1, mat.diffuse);
+				glUniform4fv(iLocMaterial[POS_MAT_SPECULAR], 1, mat.specular);
+				glUniform1f(iLocMaterial[POS_MAT_SHININESS], mat.shininess);
+
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+				glDrawElements(GL_TRIANGLES, group.indexGroups[k].numIndices, GL_UNSIGNED_INT, 0);
+			}
+		}
+	}
+}
+
+void RenderFBO(const GLShaderProgram & program, const GLFrameBufferObject & fbo)
+{
+	std::vector<GLuint> textures = fbo.GetTextures();
+	for (int i = 0; i < textures.size(); i++)
+	{
+		char buff[64];
+		sprintf(buff, "tex%d", i);
+		glActiveTexture(GL_TEXTURE0 + i);
+		glUniform1i(program.GetLocation(buff), i);
+		glBindTexture(GL_TEXTURE_2D, textures[i]);
+	}
+	
+	fbo.BindVAO();
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	glBindVertexArray(0);
+}
+
 void SetupShaderProgram()
 {
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
-	gShaderProg.Init();
+	gShaderProg.Init(SCENE);
 	
 	GLShader vShader;
 	vShader.Load("vertex.vs.glsl", GL_VERTEX_SHADER);
@@ -153,6 +267,8 @@ void SetupShaderProgram()
 
 	gShaderProg.Link();
 	gShaderProg.Use();
+
+	gShaderProg.SetRenderFunction(RenderSponza);
 }
 
 void SetupScene()
@@ -160,6 +276,50 @@ void SetupScene()
 	gScene.CreatePerspectiveCamera(60.0f, 0.3f, 3000.0f, (800 / 800));
 	gScene.CreateMeshObject("sponza.obj");
 	gScene.CreateAnimateMeshObject("zombie_walk.FBX");
+	gScene.CreateDirectionalLight(glm::vec3(1.0, 1.0, 1.0), glm::vec3(0.01, 0.01, 0.01), glm::vec3(0.2, 0.2, 0.2), glm::vec3(0.3, 0.3, 0.3));
 
 	gScene.GetCamera().GetTransform().TranslateTo(glm::vec3(0, 0, 50));
+}
+
+void SetupPipeline()
+{
+	gPipeline.SetScene(&gScene);
+	gPipeline.AddShaderProgram(gShaderProg);
+	
+	// Output all grayscale
+	GLShaderProgram fbo_prog;
+	fbo_prog.Init(FBO);
+	GLShader vShader;
+	vShader.Load("vertex_fbo.vs.glsl", GL_VERTEX_SHADER);
+	GLShader fShader;
+	fShader.Load("fragment_fbo.fs.glsl", GL_FRAGMENT_SHADER);
+	fbo_prog.AttachShader(vShader);
+	fbo_prog.AttachShader(fShader);
+	fbo_prog.Link();
+	fbo_prog.SetFrameBufferRenderFunction(RenderFBO);
+
+	gPipeline.AddShaderProgram(fbo_prog);
+
+	GLFrameBufferObject fbo;
+	fbo.Init(3, 800, 800);
+	gPipeline.AddFrameBufferObject(fbo);
+
+	// Output all 1 - grayscale
+	GLShaderProgram final_fbo_prog;
+	final_fbo_prog.Init(FBO);
+	GLShader final_vShader;
+	final_vShader.Load("vertex_final.vs.glsl", GL_VERTEX_SHADER);
+	GLShader final_fShader;
+	final_fShader.Load("fragment_final.fs.glsl", GL_FRAGMENT_SHADER);
+	final_fbo_prog.AttachShader(final_vShader);
+	final_fbo_prog.AttachShader(final_fShader);
+	final_fbo_prog.Link();
+	final_fbo_prog.SetFrameBufferRenderFunction(RenderFBO);
+
+	gPipeline.AddShaderProgram(final_fbo_prog);
+
+	GLFrameBufferObject final_fbo;
+	final_fbo.Init(3, 800, 800);
+	gPipeline.AddFrameBufferObject(final_fbo);
+	 
 }

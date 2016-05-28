@@ -131,11 +131,13 @@
     <ClCompile Include="GLAnimatedMeshObject.cpp" />
     <ClCompile Include="GLAnimatedMesh.cpp" />
     <ClCompile Include="GLCamera.cpp" />
+    <ClCompile Include="GLFrameBufferObject.cpp" />
     <ClCompile Include="GLLight.cpp" />
     <ClCompile Include="GLMesh.cpp" />
     <ClCompile Include="GLMeshObject.cpp" />
     <ClCompile Include="GLObject.cpp" />
     <ClCompile Include="GLPerspectiveCamera.cpp" />
+    <ClCompile Include="GLRenderPipeline.cpp" />
     <ClCompile Include="GLScene.cpp" />
     <ClCompile Include="GLShader.cpp" />
     <ClCompile Include="GLShaderProgram.cpp" />
@@ -150,11 +152,13 @@
     <ClInclude Include="GLAnimatedMeshObject.h" />
     <ClInclude Include="GLAnimatedMesh.h" />
     <ClInclude Include="GLCamera.h" />
+    <ClInclude Include="GLFrameBufferObject.h" />
     <ClInclude Include="GLLight.h" />
     <ClInclude Include="GLMesh.h" />
     <ClInclude Include="GLMeshObject.h" />
     <ClInclude Include="GLObject.h" />
     <ClInclude Include="GLPerspectiveCamera.h" />
+    <ClInclude Include="GLRenderPipeline.h" />
     <ClInclude Include="GLScene.h" />
     <ClInclude Include="GLShader.h" />
     <ClInclude Include="GLShaderProgram.h" />
@@ -167,7 +171,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="fragment.fs.glsl" />
+    <None Include="fragment_fbo.fs.glsl" />
+    <None Include="fragment_final.fs.glsl" />
     <None Include="vertex.vs.glsl" />
+    <None Include="vertex_fbo.vs.glsl" />
+    <None Include="vertex_final.vs.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

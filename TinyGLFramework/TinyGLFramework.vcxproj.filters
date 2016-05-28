@@ -66,6 +66,12 @@
     <ClCompile Include="MouseControl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GLFrameBufferObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GLRenderPipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tiny_glframework.h">
@@ -122,12 +128,30 @@
     <ClInclude Include="tiny_ctrl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GLFrameBufferObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GLRenderPipeline.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="fragment.fs.glsl">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="vertex.vs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="fragment_fbo.fs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="vertex_fbo.vs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="vertex_final.vs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="fragment_final.fs.glsl">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

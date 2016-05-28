@@ -20,7 +20,11 @@ namespace tiny_gl
 		GLScene();
 		~GLScene();
 
-		GLCamera & GetCamera() { return * mCamera; }
+		GLCamera & GetCamera() const { if (mCamera == nullptr) throw tiny_gl_exception_t("Camera not set");  return *mCamera; }
+		
+		template <class T>
+		T & GetCamera() const { if (mCamera == nullptr) throw tiny_gl_exception_t("Camera not set");  return *static_cast<T*>(mCamera); }
+
 		GLObject & GetGLObject(int32_t id) 
 		{ 
 			if (id >= 0 && id < mObjects.size())
@@ -28,6 +32,8 @@ namespace tiny_gl
 			else
 				throw tiny_gl::tiny_gl_exception_t("Id out of bound.");
 		}
+
+		const std::vector<GLObject *> & GetObjects() const { return mObjects; }
 
 		GLLight & GetGLLight(int32_t id)
 		{

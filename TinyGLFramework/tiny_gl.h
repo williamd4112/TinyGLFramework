@@ -7,3 +7,4 @@
 #include "GLScene.h"
 #include "GLShader.h"
 #include "GLShaderProgram.h"
+#include "GLRenderPipeline.h"
