@@ -16,13 +16,11 @@ namespace tiny_gl
 #define VBO_NORMAL 1
 #define VBO_TEXCOORD 2
 #define VBO_INDEX 3
-#define POSITION_LOC 0
-#define NORMAL_LOC 1
-#define TEXCOORD_LOC 2
 
 		struct texture_group_t
 		{
 			GLuint diffuseid;
+			GLuint bumpid;
 		};
 
 		struct index_group_t
@@ -56,9 +54,9 @@ namespace tiny_gl
 		std::vector<tinyobj::material_t> mMaterials;
 		std::vector<texture_group_t> mTextureGroups;
 
-		void Load(std::string filepath);
+		virtual void Load(std::string filepath);
 		virtual void load_file(std::string filepath);
-		void load_texture();
+		virtual void load_texture();
 	};
 }
 

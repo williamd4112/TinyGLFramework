@@ -2,6 +2,7 @@
 
 #include "GLMeshObject.h"
 #include "GLAnimatedMeshObject.h"
+#include "GLTangentMeshObject.h"
 
 using namespace glm;
 
@@ -13,6 +14,7 @@ tiny_gl::GLScene::GLScene()
 
 tiny_gl::GLScene::~GLScene()
 {
+
 }
 
 int32_t tiny_gl::GLScene::CreateMeshObject(std::string filepath)
@@ -29,6 +31,15 @@ int32_t tiny_gl::GLScene::CreateAnimateMeshObject(std::string filepath)
 	GLAnimatedMeshObject * obj = new GLAnimatedMeshObject;
 	obj->Load(filepath);
 	mObjects.push_back(obj);
+
+	return mObjects.size() - 1;
+}
+
+int32_t tiny_gl::GLScene::CreateTangentMeshObject(std::string filepath)
+{
+	GLTangentMeshObject * tobj = new GLTangentMeshObject;
+	tobj->Load(filepath);
+	mObjects.push_back(tobj);
 
 	return mObjects.size() - 1;
 }

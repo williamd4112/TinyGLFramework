@@ -13,13 +13,13 @@ namespace tiny_gl
 		GLMeshObject();
 		~GLMeshObject();
 
-		void Load(std::string filepath);
+		virtual void Load(std::string filepath);
 		void SetIndirect();
 		void Render(GLShaderProgram & program);
 		bool HasIndirect();
-		const GLMesh & Mesh() { return mMesh; }
-	private:
-		GLMesh mMesh;		
+		const GLMesh & Mesh() { if (mMesh == nullptr) throw tiny_gl_exception_t("Mesh not loaded");  return *mMesh; }
+	protected:
+		GLMesh *mMesh;		
 		bool mHasIndirect;
 	};
 }

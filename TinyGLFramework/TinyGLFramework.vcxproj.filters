@@ -72,6 +72,12 @@
     <ClCompile Include="GLRenderPipeline.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GLTangentMesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GLTangentMeshObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tiny_glframework.h">
@@ -134,25 +140,34 @@
     <ClInclude Include="GLRenderPipeline.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GLTangentMesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GLTangentMeshObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="fragment.fs.glsl">
+    <None Include="fbo.vs.glsl">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="vertex.vs.glsl">
+    <None Include="fbo.fs.glsl">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="fragment_fbo.fs.glsl">
+    <None Include="scene.fs.glsl">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="vertex_fbo.vs.glsl">
+    <None Include="scene.vs.glsl">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="vertex_final.vs.glsl">
+    <None Include="final.vs.glsl">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="fragment_final.fs.glsl">
+    <None Include="final.fs.glsl">
       <Filter>Resource Files</Filter>
+    </None>
+    <None Include="normal_map_test.cpp">
+      <Filter>Source Files</Filter>
     </None>
   </ItemGroup>
 </Project>

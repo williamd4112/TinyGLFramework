@@ -93,7 +93,10 @@ void tiny_gl::GLMesh::load_file(std::string filepath)
 {
 	std::string err;
 	if (!tinyobj::LoadObj(mShapes, mMaterials, err, filepath.c_str()))
+	{
+		std::cerr << err << std::endl;
 		throw tiny_gl_exception_t("Load error");
+	}
 }
 
 void tiny_gl::GLMesh::load_texture()

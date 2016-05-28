@@ -34,8 +34,9 @@ namespace tiny_gl
 		}
 
 		const std::vector<GLObject *> & GetObjects() const { return mObjects; }
+		const std::vector<GLLight *> & GetLights() const { return mLights; }
 
-		GLLight & GetGLLight(int32_t id)
+		GLLight & GetGLLight(int32_t id) const 
 		{
 			if (id >= 0 && id < mLights.size())
 				return *mLights[id];
@@ -45,6 +46,7 @@ namespace tiny_gl
 
 		int32_t CreateMeshObject(std::string filepath);
 		int32_t CreateAnimateMeshObject(std::string filepath);
+		int32_t CreateTangentMeshObject(std::string filepath);
 		void CreatePerspectiveCamera(float fov, float znear, float zfar, float aspect);
 
 		int32_t CreateDirectionalLight(

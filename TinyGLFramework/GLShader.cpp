@@ -14,13 +14,13 @@ tiny_gl::GLShader::~GLShader()
 void tiny_gl::GLShader::Load(std::string filepath, GLint type)
 {
 	mShaderId = glCreateShader(type);
-	char** source = tiny_gl::loadShaderSource(filepath.c_str());
+	char** source = tiny_gl::LoadShaderSource(filepath.c_str());
 
 	glShaderSource(mShaderId, 1, source, NULL);
 
-	tiny_gl::freeShaderSource(source);
+	tiny_gl::FreeShaderSource(source);
 
 	glCompileShader(mShaderId);
 
-	tiny_gl::shaderLog(mShaderId);
+	tiny_gl::ShaderLog(mShaderId);
 }

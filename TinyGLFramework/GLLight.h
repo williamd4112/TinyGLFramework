@@ -2,6 +2,21 @@
 
 #include "tiny_glframework.h"
 
+#define LIGHTSOURCE_NUM_PROPS 13
+#define POS_TYPE 0
+#define POS_AMBIENT 1
+#define POS_DIFFUSE 2
+#define POS_SPECULAR 3
+#define POS_POSITION 4
+#define POS_HALFVECTOR 5
+#define POS_SPOT_DIR 6
+#define POS_SPOT_EXP 7
+#define POS_SPOT_CUTOFF 8
+#define POS_SPOT_COSTCUTOFF 9
+#define POS_CONSTANT_ATTENUATION 10
+#define POS_CONSTANT_LINEAR_ATTENUATION 11
+#define POS_CONSTANT_QUADRATIC_ATTENUATION 12
+
 namespace tiny_gl
 {
 #define DIRECTIONAL_LIGHT 0x0
@@ -11,6 +26,22 @@ namespace tiny_gl
 	class GLLight
 	{
 	public:
+		struct LightSourceParameters {
+			uint32_t type;
+			float ambient[4];
+			float diffuse[4];
+			float specular[4];
+			float position[4];
+			float halfVector[4];
+			float spotDirection[4];
+			float spotExponent;
+			float spotCutoff; // (range: [0.0,90.0], 180.0)
+			float spotCosCutoff; // (range: [1.0,0.0],-1.0)
+			float constantAttenuation;
+			float linearAttenuation;
+			float quadraticAttenuation;
+		};
+
 		GLLight(uint32_t type) { mLightParams.type = type; }
 		~GLLight() {}
 
@@ -66,23 +97,9 @@ namespace tiny_gl
 		void SetConstantAttenuation(float v) { mLightParams.constantAttenuation = v; }
 		void SetLinearAttenuation(float v) { mLightParams.linearAttenuation = v; }
 		void SetQudraticAttenuation(float v) { mLightParams.quadraticAttenuation = v; }
+		
+		const LightSourceParameters & GetParms() const { return mLightParams; }
 	private:
-		struct LightSourceParameters {
-			uint32_t type;
-			float ambient[4];
-			float diffuse[4];
-			float specular[4];
-			float position[4];
-			float halfVector[4];
-			float spotDirection[4];
-			float spotExponent;
-			float spotCutoff; // (range: [0.0,90.0], 180.0)
-			float spotCosCutoff; // (range: [1.0,0.0],-1.0)
-			float constantAttenuation;
-			float linearAttenuation;
-			float quadraticAttenuation;
-		};
-
 		LightSourceParameters mLightParams;
 	};
 

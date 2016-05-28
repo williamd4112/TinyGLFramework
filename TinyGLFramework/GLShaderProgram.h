@@ -20,6 +20,8 @@ namespace tiny_gl
 	class GLShaderProgram
 	{
 	public:
+		static GLShaderProgram LoadWithSeries(ShaderProgramType type, std::string series);
+	public:
 		GLShaderProgram();
 		~GLShaderProgram();
 

@@ -25,6 +25,10 @@
 
 namespace tiny_gl
 {
+#define POSITION_LOC 0
+#define NORMAL_LOC 1
+#define TEXCOORD_LOC 2
+#define TANGENT_LOC 3
 #define Warning(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
 
 	struct tiny_gl_exception_t

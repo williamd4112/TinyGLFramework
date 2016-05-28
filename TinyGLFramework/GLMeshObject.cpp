@@ -17,11 +17,13 @@ tiny_gl::GLMeshObject::GLMeshObject()
 
 tiny_gl::GLMeshObject::~GLMeshObject()
 {
+	delete mMesh;
 }
 
 void tiny_gl::GLMeshObject::Load(std::string filepath)
 {
-	mMesh.Load(filepath);
+	mMesh = new GLMesh;
+	mMesh->Load(filepath);
 }
 
 void tiny_gl::GLMeshObject::SetIndirect()

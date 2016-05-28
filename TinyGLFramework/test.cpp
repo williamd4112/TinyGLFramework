@@ -36,12 +36,13 @@ int main(int argc, char *argv[])
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
 	glutInitWindowPosition(100, 100);
 	glutInitWindowSize(wndWidth, wndHeight);
+	glClearColor(1.0, 1.0, 1.0, 1.0);
 	glutCreateWindow("tiny_gl"); 
 	glewInit();
 	ilInit();
 	ilEnable(IL_ORIGIN_SET);
 	ilOriginFunc(IL_ORIGIN_LOWER_LEFT);
-	dumpInfo();
+	DumpInfo();
 
 	SetupShaderProgram();
 	SetupScene();
@@ -77,15 +78,22 @@ void Reshape(int w, int h)
 void Timer(int val)
 {
 	float time = glutGet(GLUT_ELAPSED_TIME);
-
+	time *= 0.0001;
 	float r = 500.0f;
-	float scale = 0.001f;
+	float scale = 0.008f;
 
 	timer_cnt++;
 	glutPostRedisplay();
 	if (timer_enabled)
 	{
 		gScene.Update((float)timer_cnt / 255.0);
+		GLLight & light = gScene.GetGLLight(1);
+		glm::vec3 v = gScene.GetCamera().GetTransform().Position();
+		v.x = glm::cos(time) * r;
+		v.z = glm::sin(time) * r;
+		//gScene.GetCamera().GetTransform().TranslateTo(v);
+
+		light.SetPosition(glm::vec4(v, 1.0));
 		glutTimerFunc(timer_speed, Timer, val);
 	}
 }
@@ -160,8 +168,10 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 	};
 
 	program.Use();
-
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -183,9 +193,15 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 	GLCamera & camera = scene.GetCamera();
 	const std::vector<GLObject *> & objects = scene.GetObjects();
 	
+	auto lights = scene.GetLights();
+	for (int i = 0; i < lights.size(); i++)
+	{
+		SetLightSource(program, "LightSource", i, scene.GetGLLight(i));
+	}
+
 	for (int i = 0; i < objects.size(); i++)
 	{
-		GLMeshObject * model = static_cast<GLMeshObject *>((objects[i]));
+		GLTangentMeshObject * model = static_cast<GLTangentMeshObject *>((objects[i]));
 
 		glm::mat4 &m = model->GetTransform().GetTransformMatrix();
 		glm::mat4 v = camera.GetViewMatrix();
@@ -204,6 +220,7 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 		glEnableVertexAttribArray(0);
 		glEnableVertexAttribArray(1);
 		glEnableVertexAttribArray(2);
+		glEnableVertexAttribArray(3);
 
 		const GLMesh & mesh = model->Mesh();
 		const std::vector<tiny_gl::GLMesh::group_t> & groups = mesh.Groups();
@@ -218,8 +235,13 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 				GLuint ibo = group.indexGroups[k].ibo;
 				tinyobj::material_t mat = mesh.Materials()[matid];
 
+				glUniform1i(program.GetLocation("sampler"), 0);
 				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_2D, mesh.Textures()[matid].diffuseid);
+
+				glUniform1i(program.GetLocation("normalmap"), 1);
+				glActiveTexture(GL_TEXTURE1);
+				glBindTexture(GL_TEXTURE_2D, mesh.Textures()[matid].bumpid);
 
 				glUniform4fv(iLocMaterial[POS_MAT_AMBIENT], 1, mat.ambient);
 				glUniform4fv(iLocMaterial[POS_MAT_DIFFUSE], 1, mat.diffuse);
@@ -254,18 +276,9 @@ void SetupShaderProgram()
 {
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
-	gShaderProg.Init(SCENE);
-	
-	GLShader vShader;
-	vShader.Load("vertex.vs.glsl", GL_VERTEX_SHADER);
-
-	GLShader fShader;
-	fShader.Load("fragment.fs.glsl", GL_FRAGMENT_SHADER);
-
-	gShaderProg.AttachShader(vShader);
-	gShaderProg.AttachShader(fShader);
-
-	gShaderProg.Link();
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	gShaderProg = GLShaderProgram::LoadWithSeries(SCENE, "scene");
 	gShaderProg.Use();
 
 	gShaderProg.SetRenderFunction(RenderSponza);
@@ -274,52 +287,28 @@ void SetupShaderProgram()
 void SetupScene()
 {
 	gScene.CreatePerspectiveCamera(60.0f, 0.3f, 3000.0f, (800 / 800));
-	gScene.CreateMeshObject("sponza.obj");
-	gScene.CreateAnimateMeshObject("zombie_walk.FBX");
-	gScene.CreateDirectionalLight(glm::vec3(1.0, 1.0, 1.0), glm::vec3(0.01, 0.01, 0.01), glm::vec3(0.2, 0.2, 0.2), glm::vec3(0.3, 0.3, 0.3));
+	gScene.CreateTangentMeshObject("sponza.obj");
 
-	gScene.GetCamera().GetTransform().TranslateTo(glm::vec3(0, 0, 50));
+	gScene.CreateDirectionalLight(
+		glm::vec3(0.0, 1.0, 0.0), 
+		glm::vec3(0.3, 0.3, 0.3), 
+		glm::vec3(0.7, 0.7, 0.7),
+		glm::vec3(1.0, 1.0, 1.0));
+
+	gScene.CreatePointLight(
+		glm::vec3(0.0, 500.0, 0.0),
+		glm::vec3(0.03, 0.005, 0.001),
+		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
+		glm::vec3(1.0, 1.0, 1.0),
+		0.0f,
+		0.00002f,
+		0.000003f);
+
+	gScene.GetCamera().GetTransform().TranslateTo(glm::vec3(0, 0, 0));
 }
 
 void SetupPipeline()
 {
 	gPipeline.SetScene(&gScene);
 	gPipeline.AddShaderProgram(gShaderProg);
-	
-	// Output all grayscale
-	GLShaderProgram fbo_prog;
-	fbo_prog.Init(FBO);
-	GLShader vShader;
-	vShader.Load("vertex_fbo.vs.glsl", GL_VERTEX_SHADER);
-	GLShader fShader;
-	fShader.Load("fragment_fbo.fs.glsl", GL_FRAGMENT_SHADER);
-	fbo_prog.AttachShader(vShader);
-	fbo_prog.AttachShader(fShader);
-	fbo_prog.Link();
-	fbo_prog.SetFrameBufferRenderFunction(RenderFBO);
-
-	gPipeline.AddShaderProgram(fbo_prog);
-
-	GLFrameBufferObject fbo;
-	fbo.Init(3, 800, 800);
-	gPipeline.AddFrameBufferObject(fbo);
-
-	// Output all 1 - grayscale
-	GLShaderProgram final_fbo_prog;
-	final_fbo_prog.Init(FBO);
-	GLShader final_vShader;
-	final_vShader.Load("vertex_final.vs.glsl", GL_VERTEX_SHADER);
-	GLShader final_fShader;
-	final_fShader.Load("fragment_final.fs.glsl", GL_FRAGMENT_SHADER);
-	final_fbo_prog.AttachShader(final_vShader);
-	final_fbo_prog.AttachShader(final_fShader);
-	final_fbo_prog.Link();
-	final_fbo_prog.SetFrameBufferRenderFunction(RenderFBO);
-
-	gPipeline.AddShaderProgram(final_fbo_prog);
-
-	GLFrameBufferObject final_fbo;
-	final_fbo.Init(3, 800, 800);
-	gPipeline.AddFrameBufferObject(final_fbo);
-	 
 }

@@ -5,9 +5,25 @@
 #include "GLMeshObject.h"
 #include "GLFrameBufferObject.h"
 
-#include <cassert>
-
 using namespace glm;
+
+tiny_gl::GLShaderProgram tiny_gl::GLShaderProgram::LoadWithSeries(ShaderProgramType type, std::string series)
+{
+	std::string vName = series + ".vs.glsl";
+	std::string fName = series + ".fs.glsl";
+
+	GLShaderProgram prog;
+	prog.Init(type);
+	GLShader vShader;
+	vShader.Load(vName, GL_VERTEX_SHADER);
+	GLShader fShader;
+	fShader.Load(fName, GL_FRAGMENT_SHADER);
+	prog.AttachShader(vShader);
+	prog.AttachShader(fShader);
+	prog.Link();
+
+	return prog;
+}
 
 tiny_gl::GLShaderProgram::GLShaderProgram()
 {
@@ -73,4 +89,6 @@ void tiny_gl::GLShaderProgram::Render(const GLFrameBufferObject & fbo)
 	Use();
 	mFboFunc(*this, fbo);
 }
+
+
 
