@@ -107,29 +107,63 @@ void tiny_gl::GLMesh::load_texture()
 	// For Each Material
 	for (int i = 0; i < mMaterials.size(); i++)
 	{
-		ILuint ilTexName;
-		ilGenImages(1, &ilTexName);
-		ilBindImage(ilTexName);
-
-		if (ilLoadImage(mMaterials[i].diffuse_texname.c_str()) && ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE))
-		{
-			unsigned char *data = new unsigned char[ilGetInteger(IL_IMAGE_WIDTH) * ilGetInteger(IL_IMAGE_HEIGHT) * 4];
-			ilCopyPixels(0, 0, 0, ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 1, IL_RGBA, IL_UNSIGNED_BYTE, data);
-
-			glGenTextures(1, &mTextureGroups[i].diffuseid);
-			glBindTexture(GL_TEXTURE_2D, mTextureGroups[i].diffuseid);
-
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-
-			delete[] data;
-
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-			glGenerateMipmap(GL_TEXTURE_2D);
-		}
-		ilDeleteImages(1, &ilTexName);
+		load_diffuse(mMaterials[i], mTextureGroups[i]);
+		load_specular(mMaterials[i], mTextureGroups[i]);
 	}
+}
+
+void tiny_gl::GLMesh::load_diffuse(tinyobj::material_t & mat, texture_group_t & tex_group)
+{
+	ILuint ilTexName;
+	ilGenImages(1, &ilTexName);
+	ilBindImage(ilTexName);
+
+	if (ilLoadImage(mat.diffuse_texname.c_str()) && ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE))
+	{
+		unsigned char *data = new unsigned char[ilGetInteger(IL_IMAGE_WIDTH) * ilGetInteger(IL_IMAGE_HEIGHT) * 4];
+		ilCopyPixels(0, 0, 0, ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 1, IL_RGBA, IL_UNSIGNED_BYTE, data);
+
+		glGenTextures(1, &tex_group.diffuseid);
+		glBindTexture(GL_TEXTURE_2D, tex_group.diffuseid);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+		delete[] data;
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	ilDeleteImages(1, &ilTexName);
+}
+
+void tiny_gl::GLMesh::load_specular(tinyobj::material_t & mat, texture_group_t & tex_group)
+{
+	ILuint ilTexName;
+	ilGenImages(1, &ilTexName);
+	ilBindImage(ilTexName);
+
+	if (ilLoadImage(mat.specular_texname.c_str()) && ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE))
+	{
+		unsigned char *data = new unsigned char[ilGetInteger(IL_IMAGE_WIDTH) * ilGetInteger(IL_IMAGE_HEIGHT) * 4];
+		ilCopyPixels(0, 0, 0, ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 1, IL_RGBA, IL_UNSIGNED_BYTE, data);
+
+		glGenTextures(1, &tex_group.specularid);
+		glBindTexture(GL_TEXTURE_2D, tex_group.specularid);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+		delete[] data;
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	ilDeleteImages(1, &ilTexName);
 }

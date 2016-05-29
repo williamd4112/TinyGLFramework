@@ -21,6 +21,10 @@ namespace tiny_gl
 		{
 			GLuint diffuseid;
 			GLuint bumpid;
+			GLuint specularid;
+
+			texture_group_t() : diffuseid(0), bumpid(0), specularid(0) {}
+			~texture_group_t() {}
 		};
 
 		struct index_group_t
@@ -57,6 +61,8 @@ namespace tiny_gl
 		virtual void Load(std::string filepath);
 		virtual void load_file(std::string filepath);
 		virtual void load_texture();
+		void load_diffuse(tinyobj::material_t & mat, texture_group_t & tex_group);
+		void load_specular(tinyobj::material_t & mat, texture_group_t & tex_group);
 	};
 }
 

@@ -13,6 +13,7 @@ uniform sampler2D sampler;
 uniform sampler2D normalmap;
 uniform sampler2D depthmap;
 uniform samplerCube depthcube;
+uniform sampler2D specularmap;
 
 in vec3 vv3pos;
 
@@ -46,6 +47,7 @@ uniform vec3 lightPos;
 uniform float far_plane;
 uniform vec3 E;
 uniform int Mode;
+uniform int enable_specularMap = 0;
 uniform mat4 M, V;
 
 uniform int fog_type = 2;
@@ -60,8 +62,8 @@ vec4 calc_dirLight(int light_id, float shadow)
 	vec3 vertex_pos = vv3pos;
 	vec3 normal = normalize(texture(normalmap, vv2texcoord).rgb * 2.0 - vec3(1.0));
 
-	float shininess = Material.shininess;
-	
+	float shininess = (enable_specularMap == 1) ? texture(specularmap, vv2texcoord).r * 128.0 : Material.shininess;
+	shininess = clamp(shininess, 2.0, 128.0);
 	vec3 diffuse_color = vec3(LightSource[light_id].diffuse); 
 	vec3 ambient_color = vec3(LightSource[light_id].ambient); 
 	vec3 specular_color = vec3(LightSource[light_id].specular); 
@@ -138,7 +140,7 @@ void main()
 	else
 	{
 		vec3 intensity = vec3(0, 0, 0);
-		for(int i = 0; i < 2; i++)
+		for(int i = 1; i < 2; i++)
 		{
 			// Calculate shadow
 			float shadow = 0.0;
@@ -159,11 +161,11 @@ void main()
 				float att = 1.0 / (LightSource[i].constantAttenuation +
 						LightSource[i].linearAttenuation * lightdist +
 						LightSource[i].quadraticAttenuation * lightdist * lightdist);
-				tmp *= att * 2.9;
+				tmp *= att * 2.2;
 			}
 			else
 			{
-				tmp *= 1.6;
+				tmp *= 1.1;
 			}
 			intensity = intensity + tmp;
 		}
@@ -188,7 +190,7 @@ void main()
 		fogFactor = clamp( fogFactor, 0.0, 1.0 );
 
 		fragColor = vec4(color.rgb * intensity , color.a);
-	    fragColor = mix(fogColor, fragColor , fogFactor);
+	    //fragColor = mix(fogColor, fragColor , fogFactor);
 		//fragColor = atmospheric(fragColor);
 	}
 }

@@ -81,8 +81,8 @@ void Reshape(int w, int h)
 void Timer(int val)
 {
 	float time = glutGet(GLUT_ELAPSED_TIME);
-	time *= 0.0002;
-	float r = 500.0;
+	time *= 0.0001;
+	float r = 1000.0;
 	float scale = 0.008f;
 
 	timer_cnt++;
@@ -98,8 +98,8 @@ void Timer(int val)
 		GLLight & light_d = gScene.GetGLLight(0);
 		glm::vec3 v_d = gScene.GetCamera().GetTransform().Position();
 		v_d.x = glm::cos(time) * r;
-		v_d.y = r;
-		v_d.z = glm::sin(time) * r;
+		v_d.z = 0;
+		v_d.y = glm::sin(time) * r;
 		light_d.SetPosition(glm::vec4(v_d, 1.0));
 
 		glutTimerFunc(timer_speed, Timer, val);
@@ -284,6 +284,18 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 				glActiveTexture(GL_TEXTURE1);
 				glBindTexture(GL_TEXTURE_2D, mesh.Textures()[matid].bumpid);
 
+				if (mesh.Textures()[matid].specularid)
+				{
+					glUniform1i(program.GetLocation("enable_specularMap"), 1);
+					glUniform1i(program.GetLocation("specularmap"), 4);
+					glActiveTexture(GL_TEXTURE4);
+					glBindTexture(GL_TEXTURE_2D, mesh.Textures()[matid].specularid);
+				}
+				else
+				{
+					glUniform1i(program.GetLocation("enable_specularMap"), 0);
+				}
+
 				glUniform4fv(iLocMaterial[POS_MAT_AMBIENT], 1, mat.ambient);
 				glUniform4fv(iLocMaterial[POS_MAT_DIFFUSE], 1, mat.diffuse);
 				glUniform4fv(iLocMaterial[POS_MAT_SPECULAR], 1, mat.specular);
@@ -459,14 +471,14 @@ void SetupScene()
 
 	gScene.CreateDirectionalLight(
 		glm::vec3(1.0, 1.0, 1.0), 
-		0.3f * glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
-		0.8f * glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
+		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
+		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
 		glm::vec3(1.0, 1.0, 1.0));
 
 	gScene.CreatePointLight(
 		glm::vec3(0.0, 500.0, 0.0),
-		0.3f * glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
-		0.7f * glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
+		0.1f * glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
+		1.0f * glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
 		glm::vec3(1.0, 1.0, 1.0),
 		0.01f,
 		0.0008f,
