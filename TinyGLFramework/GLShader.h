@@ -12,6 +12,7 @@ namespace tiny_gl
 		~GLShader();
 
 		void Load(std::string filepath, GLint type);
+		void Load(char **, GLint type);
 	private:
 		GLuint mShaderId;
 	};

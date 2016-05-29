@@ -9,6 +9,7 @@
 #include <map>
 #include <unordered_map>
 #include <cstring>
+#include <sstream>
 #include <algorithm>
 #include <cassert>
 #include <cmath>

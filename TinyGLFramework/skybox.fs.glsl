@@ -6,11 +6,9 @@ in vec3 vv3normal;
 in vec3 vv3tangent;
 in vec2 vv2texcoord;
 in mat3 matTBN;
-in vec4 vv4posLightSpace;
 
 uniform sampler2D sampler;   
 uniform sampler2D normalmap;
-uniform sampler2D depthmap;
 
 in vec3 vv3pos;
 
@@ -44,14 +42,7 @@ uniform vec3 E;
 uniform int Mode;
 uniform mat4 M, V;
 
-uniform int fog_type = 2;
-const vec4 fogColor = vec4(0.5, 0.5, 0.5,1.0);
-float fogFactor = 0;
-float fogDensity = 0.2;
-float fog_start = 1;
-float fog_end = 6.0f;
-
-vec4 calc_dirLight(int light_id, float shadow)
+vec4 calc_dirLight(int light_id)
 {
 	vec3 vertex_pos = vv3pos;
 	vec3 normal = normalize(texture(normalmap, vv2texcoord).rgb * 2.0 - vec3(1.0));
@@ -77,34 +68,21 @@ vec4 calc_dirLight(int light_id, float shadow)
 	float RdotE = max(dot(reflection, viewdir), 0.0);
 	specular = pow(RdotE, shininess) * specular_color * Material.specular.rgb;
 
-	return vec4(0.87 * ambient + (1.0 - shadow) * (diffuse + specular), 1.0);
+	return vec4(ambient + diffuse + specular, 1.0);
 }
 
-float ShadowCalculation(vec4 fragPosLightSpace)
-{
-    // perform perspective divide
-    vec3 projCoords = vv4posLightSpace.xyz / vv4posLightSpace.w;
-	projCoords = projCoords * 0.5 + 0.5;
-	 
-	float closestDepth = texture(depthmap, projCoords.xy).r; 
-	float currentDepth = projCoords.z;  
-	return currentDepth > closestDepth  ? 1.0 : 0.0;  
-}
 
 void main() 
 {
 	vec4 color = texture2D(sampler, vv2texcoord.st).rgba;
-	
-	float shadow = ShadowCalculation(vv4posLightSpace);  
-
 	if(color.a < 0.5)
 		discard;
 	else
 	{
 		vec3 intensity = vec3(0, 0, 0);
-		for(int i = 0; i < 1; i++)
+		for(int i = 0; i < 2; i++)
 		{
-			vec3 tmp = calc_dirLight(i, shadow).rgb;
+			vec3 tmp = calc_dirLight(i).rgb;
 			
 			if(bool(LightSource[i].type & 0x1))
 			{
@@ -114,32 +92,9 @@ void main()
 						LightSource[i].quadraticAttenuation * lightdist * lightdist);
 				tmp *= att;
 			}
-			else
-			{
-				tmp *= 1.75;
-			}
-			intensity = intensity + tmp;
+			intensity += tmp;
 		}
-
-		
-		float dist = length(vv3pos);
-		switch(fog_type)
-		{
-			case 0: //Linear
-				fogFactor = (fog_end - dist) / (fog_end - fog_start);
-				break;
-			case 1: //Exp
-				fogFactor = 1.0 /exp(dist * fogDensity);
-				break;
-			case 2: //Exp sqare
-				fogFactor = 1.0 /exp( (dist * fogDensity)* (dist * fogDensity));
-				break;
-			default:
-				break;
-		}
-		fogFactor = clamp( fogFactor, 0.0, 1.0 );
 
 		fragColor = vec4(color.rgb * intensity , color.a);
-	    //fragColor = mix(fogColor, fragColor , 0.777);
 	}
 }

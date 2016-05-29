@@ -9,7 +9,7 @@ static bool timer_enabled = true;
 static unsigned int timer_speed = 30;
 static int wndWidth, wndHeight;
 
-static GLShaderProgram gShaderProg;
+static GLShaderProgram gSceneShaderProg;
 static GLScene gScene;
 static GLRenderPipeline gPipeline;
 static MouseControl gMouse;
@@ -256,10 +256,10 @@ void SetupShaderProgram()
 {
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
-	gShaderProg = GLShaderProgram::LoadWithSeries(SCENE, "scene");
-	gShaderProg.Use();
+	gSceneShaderProg = GLShaderProgram::LoadWithSeries(SCENE, "scene");
+	gSceneShaderProg.Use();
 
-	gShaderProg.SetRenderFunction(RenderSponza);
+	gSceneShaderProg.SetRenderFunction(RenderSponza);
 }
 
 void SetupScene()
@@ -275,5 +275,5 @@ void SetupScene()
 void SetupPipeline()
 {
 	gPipeline.SetScene(&gScene);
-	gPipeline.AddShaderProgram(gShaderProg);
+	gPipeline.AddShaderProgram(gSceneShaderProg);
 }

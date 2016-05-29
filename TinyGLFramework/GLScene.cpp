@@ -7,14 +7,21 @@
 using namespace glm;
 
 tiny_gl::GLScene::GLScene()
-	: mCamera(nullptr)
+	: mCamera(nullptr), mSkybox(nullptr)
 {
 }
 
 
 tiny_gl::GLScene::~GLScene()
 {
-
+	for (int i = 0; i < mObjects.size(); i++)
+		delete mObjects[i];
+	for (int i = 0; i < mLights.size(); i++)
+		delete mLights[i];
+	if(mCamera != nullptr)
+		delete mCamera;
+	if(mSkybox != nullptr)
+		delete mSkybox;
 }
 
 int32_t tiny_gl::GLScene::CreateMeshObject(std::string filepath)
@@ -106,6 +113,18 @@ int32_t tiny_gl::GLScene::CreateSpotLight(
 	mLights.push_back(light);
 
 	return mLights.size() - 1;
+}
+
+void tiny_gl::GLScene::CreateSkybox(std::vector<std::string> & filenames)
+{
+	mSkybox = new GLSkybox;
+	mSkybox->Load(filenames);
+}
+
+void tiny_gl::GLScene::CreateSkybox(std::string filename)
+{
+	mSkybox = new GLSkybox;
+	mSkybox->Load(filename);
 }
 
 void tiny_gl::GLScene::Update(float t)

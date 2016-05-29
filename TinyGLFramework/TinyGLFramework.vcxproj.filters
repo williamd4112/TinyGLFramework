@@ -78,6 +78,12 @@
     <ClCompile Include="GLTangentMeshObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GLSkybox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GLFrameBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tiny_glframework.h">
@@ -146,6 +152,15 @@
     <ClInclude Include="GLTangentMeshObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GLSkybox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GLFrameBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="fbo.vs.glsl">
@@ -168,6 +183,12 @@
     </None>
     <None Include="normal_map_test.cpp">
       <Filter>Source Files</Filter>
+    </None>
+    <None Include="shadow.fs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="shadow.vs.glsl">
+      <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
 </Project>

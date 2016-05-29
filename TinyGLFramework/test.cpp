@@ -9,9 +9,10 @@ static bool timer_enabled = true;
 static unsigned int timer_speed = 30;
 static int wndWidth, wndHeight;
 
-static GLShaderProgram gShaderProg;
+static GLShaderProgram gSceneShaderProg;
+static GLShaderProgram gShadowShaderProg;
+static GLFrameBuffer gShadowFrameBuffer;
 static GLScene gScene;
-static GLRenderPipeline gPipeline;
 static MouseControl gMouse;
 
 static void Display();
@@ -22,10 +23,10 @@ static void Mouse(int button, int state, int x, int y);
 static void PassiveMouse(int x, int y);
 
 static void RenderSponza(const GLShaderProgram &, const GLScene &);
+static void RenderShadow(const GLScene &, glm::mat4 & lightSpaceMatrix);
 static void RenderFBO(const GLShaderProgram &, const GLFrameBufferObject &);
 static void SetupShaderProgram();
 static void SetupScene();
-static void SetupPipeline();
 
 int main(int argc, char *argv[])
 {
@@ -46,7 +47,6 @@ int main(int argc, char *argv[])
 
 	SetupShaderProgram();
 	SetupScene();
-	SetupPipeline();
 
 	glutDisplayFunc(Display);
 	glutReshapeFunc(Reshape);
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 
 void Display()
 {
-	gPipeline.Render(wndWidth, wndHeight);
+	RenderSponza(gSceneShaderProg, gScene);
 	glutSwapBuffers();
 }
 
@@ -78,8 +78,8 @@ void Reshape(int w, int h)
 void Timer(int val)
 {
 	float time = glutGet(GLUT_ELAPSED_TIME);
-	time *= 0.0001;
-	float r = 500.0f;
+	time *= 0.0004;
+	float r = 500.0;
 	float scale = 0.008f;
 
 	timer_cnt++;
@@ -88,10 +88,10 @@ void Timer(int val)
 	{
 		gScene.Update((float)timer_cnt / 255.0);
 		GLLight & light = gScene.GetGLLight(1);
-		glm::vec3 v = gScene.GetCamera().GetTransform().Position();
+		glm::vec3 v;
 		v.x = glm::cos(time) * r;
-		v.z = glm::sin(time) * r;
-		//gScene.GetCamera().GetTransform().TranslateTo(v);
+		v.y = gScene.GetCamera().GetTransform().Position().y;
+		v.z = (glm::sin(time) * r);
 
 		light.SetPosition(glm::vec4(v, 1.0));
 		glutTimerFunc(timer_speed, Timer, val);
@@ -167,13 +167,38 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 		"shininess"
 	};
 
-	program.Use();
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	const GLLight & directionalLight = scene.GetGLLight(0);
+	glm::vec3 pos(directionalLight.GetParms().position[0],
+		directionalLight.GetParms().position[1],
+		directionalLight.GetParms().position[2]);
 
+	GLfloat near_plane = 1.0f, far_plane = 7.5f;
+	glm::mat4 lightProjection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, near_plane, far_plane);
+	glm::mat4 lightView = glm::lookAt(pos,
+		glm::vec3(0.0f, 0.0f, 0.0f),
+		glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+	glCullFace(GL_FRONT);
+	RenderShadow(gScene, lightSpaceMatrix);
+	glCullFace(GL_BACK);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, wndWidth, wndHeight);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	GLCamera & camera = scene.GetCamera();
+
+	scene.GetSkybox().Render(camera.GetViewMatrix());	
+
+	program.Use();
+	glUniformMatrix4fv(program.GetLocation("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+	glUniform1i(program.GetLocation("depthmap"), 2);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, gShadowFrameBuffer.GetTexture(0));
 
 	GLuint uLocMVP = program.GetLocation("mvp");
 	GLuint uLocM = program.GetLocation("M");
@@ -190,7 +215,6 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 		iLocMaterial[i] = program.GetLocation(str);
 	}
 
-	GLCamera & camera = scene.GetCamera();
 	const std::vector<GLObject *> & objects = scene.GetObjects();
 	
 	auto lights = scene.GetLights();
@@ -255,6 +279,50 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 	}
 }
 
+void RenderShadow(const GLScene & scene, glm::mat4 & lightSpaceMatrix)
+{
+	gShadowShaderProg.Use();
+
+	glUniformMatrix4fv(gShadowShaderProg.GetLocation("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+
+	glViewport(0, 0, wndWidth, wndHeight);
+	gShadowFrameBuffer.Bind();
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(4.0f, 4.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	const std::vector<GLObject *> & objects = scene.GetObjects();
+	for (int i = 0; i < objects.size(); i++)
+	{
+		GLTangentMeshObject * model = static_cast<GLTangentMeshObject *>((objects[i]));
+
+		glm::mat4 &m = model->GetTransform().GetTransformMatrix();
+		glUniformMatrix4fv(gShadowShaderProg.GetLocation("model"), 1, GL_FALSE, glm::value_ptr(m));
+
+		glEnableVertexAttribArray(0);
+
+		const GLMesh & mesh = model->Mesh();
+		const std::vector<tiny_gl::GLMesh::group_t> & groups = mesh.Groups();
+		for (int j = 0; j < groups.size(); j++)
+		{
+			const tiny_gl::GLMesh::group_t & group = groups[j];
+
+			glBindVertexArray(group.vaoid);
+			for (int k = 0; k < group.indexGroups.size(); k++)
+			{
+				GLuint ibo = group.indexGroups[k].ibo;
+
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+				glDrawElements(GL_TRIANGLES, group.indexGroups[k].numIndices, GL_UNSIGNED_INT, 0);
+			}
+		}
+	}
+
+	gShadowFrameBuffer.Unbind();
+}
+
+
 void RenderFBO(const GLShaderProgram & program, const GLFrameBufferObject & fbo)
 {
 	std::vector<GLuint> textures = fbo.GetTextures();
@@ -278,10 +346,15 @@ void SetupShaderProgram()
 	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	gShaderProg = GLShaderProgram::LoadWithSeries(SCENE, "scene");
-	gShaderProg.Use();
 
-	gShaderProg.SetRenderFunction(RenderSponza);
+	gSceneShaderProg = GLShaderProgram::LoadWithSeries(SCENE, "scene");
+	gSceneShaderProg.Use();
+	gSceneShaderProg.SetRenderFunction(RenderSponza);
+
+	gShadowShaderProg = GLShaderProgram::LoadWithSeries(SCENE, "shadow");
+
+	gShadowFrameBuffer.Init(GLFrameBuffer::DEPTH, 1, wndWidth, wndHeight);
+	
 }
 
 void SetupScene()
@@ -290,9 +363,9 @@ void SetupScene()
 	gScene.CreateTangentMeshObject("sponza.obj");
 
 	gScene.CreateDirectionalLight(
-		glm::vec3(0.0, 1.0, 0.0), 
-		glm::vec3(0.3, 0.3, 0.3), 
-		glm::vec3(0.7, 0.7, 0.7),
+		glm::vec3(1.0, 1.0, 1.0), 
+		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
+		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
 		glm::vec3(1.0, 1.0, 1.0));
 
 	gScene.CreatePointLight(
@@ -301,14 +374,19 @@ void SetupScene()
 		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
 		glm::vec3(1.0, 1.0, 1.0),
 		0.0f,
-		0.00002f,
-		0.000003f);
+		0.001f,
+		0.0f);
 
-	gScene.GetCamera().GetTransform().TranslateTo(glm::vec3(0, 0, 0));
-}
+	gScene.GetCamera().GetTransform().TranslateTo(glm::vec3(0, 600, 0));
 
-void SetupPipeline()
-{
-	gPipeline.SetScene(&gScene);
-	gPipeline.AddShaderProgram(gShaderProg);
+	const char *skybox_filenames[6] = {
+		"mountaincube_02.jpg",
+		"mountaincube_01.jpg",
+		"mountaincube_04.jpg",
+		"mountaincube_03.jpg",
+		"mountaincube_05.jpg",
+		"mountaincube_06.jpg"
+	};
+
+	gScene.CreateSkybox("mountaincube.png");
 }

@@ -4,6 +4,7 @@
 #include "GLPerspectiveCamera.h"
 #include "GLObject.h"
 #include "GLLight.h"
+#include "GLSkybox.h"
 
 #include "tiny_glframework.h"
 
@@ -43,6 +44,8 @@ namespace tiny_gl
 			else
 				throw tiny_gl::tiny_gl_exception_t("Id out of bound.");
 		}
+		
+		GLSkybox & GetSkybox() const { if (mSkybox == nullptr) throw tiny_gl_exception_t("Skybox not set"); return *mSkybox; }
 
 		int32_t CreateMeshObject(std::string filepath);
 		int32_t CreateAnimateMeshObject(std::string filepath);
@@ -59,9 +62,15 @@ namespace tiny_gl
 		int32_t CreateSpotLight(
 			glm::vec3 pos, glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, 
 			float constantAtt, float linearAtt, float quadraticAtt, float cutoff);
+
+		void CreateSkybox(std::vector<std::string> & filenames);
+
+		void CreateSkybox(std::string filename);
+
 		void Update(float t);
 	private:
 		GLCamera * mCamera;
+		GLSkybox * mSkybox;
 		std::vector<GLLight *> mLights;
 		std::vector<GLObject*> mObjects;
 	};

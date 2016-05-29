@@ -75,7 +75,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)\..\VCLibs\glm;$(SolutionDir)\..\VCLibs\freeglut;$(SolutionDir)\..\VCLibs\glew;$(SolutionDir)\..\VCLibs\texture_loader;$(SolutionDir)\..\VCLibs\fbxsdk;$(SolutionDir)\..\VCLibs\devil;$(SolutionDir)\..\VCLibs\tinyobjloader;$(SolutionDir)\..\VCLibs\assimp\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)\..\VCLibs\glm;$(SolutionDir)\..\VCLibs\freeglut;$(SolutionDir)\..\VCLibs\glew;$(SolutionDir)\..\VCLibs\texture_loader;$(SolutionDir)\..\VCLibs\fbxsdk;$(SolutionDir)\..\VCLibs\devil;$(SolutionDir)\..\VCLibs\tinyobjloader;$(SolutionDir)\..\VCLibs\assimp\include;$(SolutionDir)\..\VCLibs\STB;$(SolutionDir)\..\VCLibs\LibPNG;$(SolutionDir)\..\VCLibs\;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)\..\VCLibs\freeglut;$(SolutionDir)\..\VCLibs\glew;$(SolutionDir)\..\VCLibs\texture_loader;$(SolutionDir)\..\VCLibs\fbxsdk;$(SolutionDir)\..\VCLibs\devil;$(SolutionDir)\..\VCLibs\assimp\lib32;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Label="UserMacros" />
@@ -131,6 +131,7 @@
     <ClCompile Include="GLAnimatedMeshObject.cpp" />
     <ClCompile Include="GLAnimatedMesh.cpp" />
     <ClCompile Include="GLCamera.cpp" />
+    <ClCompile Include="GLFrameBuffer.cpp" />
     <ClCompile Include="GLFrameBufferObject.cpp" />
     <ClCompile Include="GLLight.cpp" />
     <ClCompile Include="GLMesh.cpp" />
@@ -141,6 +142,7 @@
     <ClCompile Include="GLScene.cpp" />
     <ClCompile Include="GLShader.cpp" />
     <ClCompile Include="GLShaderProgram.cpp" />
+    <ClCompile Include="GLSkybox.cpp" />
     <ClCompile Include="GLTangentMesh.cpp" />
     <ClCompile Include="GLTangentMeshObject.cpp" />
     <ClCompile Include="MouseControl.cpp" />
@@ -154,6 +156,7 @@
     <ClInclude Include="GLAnimatedMeshObject.h" />
     <ClInclude Include="GLAnimatedMesh.h" />
     <ClInclude Include="GLCamera.h" />
+    <ClInclude Include="GLFrameBuffer.h" />
     <ClInclude Include="GLFrameBufferObject.h" />
     <ClInclude Include="GLLight.h" />
     <ClInclude Include="GLMesh.h" />
@@ -164,9 +167,11 @@
     <ClInclude Include="GLScene.h" />
     <ClInclude Include="GLShader.h" />
     <ClInclude Include="GLShaderProgram.h" />
+    <ClInclude Include="GLSkybox.h" />
     <ClInclude Include="GLTangentMesh.h" />
     <ClInclude Include="GLTangentMeshObject.h" />
     <ClInclude Include="MouseControl.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="tiny_ctrl.h" />
     <ClInclude Include="tiny_gl.h" />
     <ClInclude Include="tiny_glframework.h" />
@@ -181,6 +186,8 @@
     <None Include="scene.vs.glsl" />
     <None Include="fbo.vs.glsl" />
     <None Include="final.vs.glsl" />
+    <None Include="shadow.fs.glsl" />
+    <None Include="shadow.vs.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

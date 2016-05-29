@@ -1,5 +1,8 @@
 #include "tiny_gl_util.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 void tiny_gl::CheckError(const char *functionName)
 {
 	GLenum error;
@@ -96,4 +99,28 @@ void tiny_gl::SetLightSource(const GLShaderProgram & program, std::string prefix
 	glUniform1fv(iLocLightsource[POS_CONSTANT_ATTENUATION], 1, &lightsource.constantAttenuation);
 	glUniform1fv(iLocLightsource[POS_CONSTANT_LINEAR_ATTENUATION], 1, &lightsource.linearAttenuation);
 	glUniform1fv(iLocLightsource[POS_CONSTANT_QUADRATIC_ATTENUATION], 1, &lightsource.quadraticAttenuation);
+}
+
+tiny_gl::texture_data tiny_gl::load_png(const char* path)
+{
+	texture_data texture;
+	int n;
+	stbi_uc *data = stbi_load(path, &texture.width, &texture.height, &n, 4);
+	if (data != NULL)
+	{
+		texture.data = new unsigned char[texture.width * texture.height * 4 * sizeof(unsigned char)];
+		memcpy(texture.data, data, texture.width * texture.height * 4 * sizeof(unsigned char));
+		// vertical-mirror image data
+		for (size_t i = 0; i < texture.width; i++)
+		{
+			for (size_t j = 0; j < texture.height / 2; j++)
+			{
+				for (size_t k = 0; k < 4; k++) {
+					std::swap(texture.data[(j * texture.width + i) * 4 + k], texture.data[((texture.height - j - 1) * texture.width + i) * 4 + k]);
+				}
+			}
+		}
+		stbi_image_free(data);
+	}
+	return texture;
 }
