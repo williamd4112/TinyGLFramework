@@ -10,7 +10,8 @@ namespace tiny_gl
 		enum BufferType
 		{
 			COLOR,
-			DEPTH
+			DEPTH,
+			DEPTH_CUBE
 		};
 
 		GLFrameBuffer() {}
@@ -28,6 +29,7 @@ namespace tiny_gl
 		std::vector<GLuint> mTextureIDs;
 
 		void init_depth();
+		void init_depth_cube();
 		void init_color();
 	};
 }

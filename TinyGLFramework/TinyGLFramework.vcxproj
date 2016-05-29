@@ -188,6 +188,9 @@
     <None Include="final.vs.glsl" />
     <None Include="shadow.fs.glsl" />
     <None Include="shadow.vs.glsl" />
+    <None Include="shadow_omini.fs.glsl" />
+    <None Include="shadow_omini.gs.glsl" />
+    <None Include="shadow_omini.vs.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

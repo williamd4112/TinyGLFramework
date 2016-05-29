@@ -25,6 +25,41 @@ tiny_gl::GLShaderProgram tiny_gl::GLShaderProgram::LoadWithSeries(ShaderProgramT
 	return prog;
 }
 
+tiny_gl::GLShaderProgram tiny_gl::GLShaderProgram::LoadWithSeries(ShaderProgramType type, std::string series, unsigned int mode)
+{
+	std::string vName = series + ".vs.glsl";
+	std::string fName = series + ".fs.glsl";
+	std::string gName = series + ".gs.glsl";
+
+	GLShaderProgram prog;
+	prog.Init(type);
+
+	if (mode & BIT_VS)
+	{
+		GLShader vShader;
+		vShader.Load(vName, GL_VERTEX_SHADER);
+		prog.AttachShader(vShader);
+	}
+
+	if (mode & BIT_FS)
+	{
+		GLShader fShader;
+		fShader.Load(fName, GL_FRAGMENT_SHADER);
+		prog.AttachShader(fShader);
+	}
+
+	if (mode & BIT_GS)
+	{
+		GLShader gShader;
+		gShader.Load(gName, GL_GEOMETRY_SHADER);
+		prog.AttachShader(gShader);
+	}
+
+	prog.Link();
+
+	return prog;
+}
+
 tiny_gl::GLShaderProgram::GLShaderProgram()
 {
 }

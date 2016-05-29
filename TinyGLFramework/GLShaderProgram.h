@@ -3,6 +3,10 @@
 #include "tiny_glframework.h"
 #include "GLFrameBufferObject.h"
 
+#define BIT_VS 0x1
+#define BIT_FS 0x2
+#define BIT_GS 0x3
+
 namespace tiny_gl
 {
 	class GLScene;
@@ -21,6 +25,7 @@ namespace tiny_gl
 	{
 	public:
 		static GLShaderProgram LoadWithSeries(ShaderProgramType type, std::string series);
+		static GLShaderProgram LoadWithSeries(ShaderProgramType type, std::string series, unsigned int mode);
 	public:
 		GLShaderProgram();
 		~GLShaderProgram();

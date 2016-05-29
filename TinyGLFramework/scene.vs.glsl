@@ -15,6 +15,7 @@ out vec3 vv3tangent;
 out vec3 vv3pos;
 out vec2 vv2texcoord;
 out mat3 matTBN;
+out vec3 worldPos;
 out vec4 vv4posLightSpace;
 
 void main()
@@ -42,5 +43,6 @@ void main()
 	vv3pos = vec3(P) / P.w;
 
 	vv3tangent = iv3tangent;
-	vv4posLightSpace = lightSpaceMatrix * vec4(M * vec4(iv3vertex, 1.0));
+	worldPos = vec3(M * vec4(iv3vertex, 1.0));
+	vv4posLightSpace = lightSpaceMatrix * vec4(worldPos, 1.0);
 }

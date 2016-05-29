@@ -11,7 +11,9 @@ static int wndWidth, wndHeight;
 
 static GLShaderProgram gSceneShaderProg;
 static GLShaderProgram gShadowShaderProg;
+static GLShaderProgram gOminiShadowShaderProg;
 static GLFrameBuffer gShadowFrameBuffer;
+static GLFrameBuffer gOminiShadowFrameBuffer;
 static GLScene gScene;
 static MouseControl gMouse;
 
@@ -24,6 +26,7 @@ static void PassiveMouse(int x, int y);
 
 static void RenderSponza(const GLShaderProgram &, const GLScene &);
 static void RenderShadow(const GLScene &, glm::mat4 & lightSpaceMatrix);
+static void RenderOminidirectionShadow(const GLScene &, GLfloat zfar);
 static void RenderFBO(const GLShaderProgram &, const GLFrameBufferObject &);
 static void SetupShaderProgram();
 static void SetupScene();
@@ -78,7 +81,7 @@ void Reshape(int w, int h)
 void Timer(int val)
 {
 	float time = glutGet(GLUT_ELAPSED_TIME);
-	time *= 0.0004;
+	time *= 0.0002;
 	float r = 500.0;
 	float scale = 0.008f;
 
@@ -87,13 +90,18 @@ void Timer(int val)
 	if (timer_enabled)
 	{
 		gScene.Update((float)timer_cnt / 255.0);
+		
 		GLLight & light = gScene.GetGLLight(1);
-		glm::vec3 v;
-		v.x = glm::cos(time) * r;
-		v.y = gScene.GetCamera().GetTransform().Position().y;
-		v.z = (glm::sin(time) * r);
-
+		glm::vec3 v = gScene.GetCamera().GetTransform().Position();
 		light.SetPosition(glm::vec4(v, 1.0));
+
+		GLLight & light_d = gScene.GetGLLight(0);
+		glm::vec3 v_d = gScene.GetCamera().GetTransform().Position();
+		v_d.x = glm::cos(time) * r;
+		v_d.y = r;
+		v_d.z = glm::sin(time) * r;
+		light_d.SetPosition(glm::vec4(v_d, 1.0));
+
 		glutTimerFunc(timer_speed, Timer, val);
 	}
 }
@@ -102,7 +110,7 @@ void Keyboard(unsigned char key, int x, int y)
 {
 	printf("Key %c is pressed at (%d, %d)\n", key, x, y);
 
-	float forward_speed = 3.0f;
+	float forward_speed = 10.0f;
 	Transform &t = gScene.GetCamera().GetTransform();
 	glm::vec3 forward = gScene.GetCamera().Forward();
 	glm::vec3 right = gScene.GetCamera().Right();
@@ -171,15 +179,18 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 	glm::vec3 pos(directionalLight.GetParms().position[0],
 		directionalLight.GetParms().position[1],
 		directionalLight.GetParms().position[2]);
-
-	GLfloat near_plane = 1.0f, far_plane = 7.5f;
-	glm::mat4 lightProjection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, near_plane, far_plane);
+	GLfloat near_plane = 1.0f, far_plane = 17.5f;
+	glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
 	glm::mat4 lightView = glm::lookAt(pos,
 		glm::vec3(0.0f, 0.0f, 0.0f),
 		glm::vec3(0.0f, 1.0f, 0.0f));
 	glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 	glCullFace(GL_FRONT);
 	RenderShadow(gScene, lightSpaceMatrix);
+	glCullFace(GL_BACK);
+
+	glCullFace(GL_FRONT);
+	RenderOminidirectionShadow(scene, far_plane);
 	glCullFace(GL_BACK);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -196,9 +207,15 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 
 	program.Use();
 	glUniformMatrix4fv(program.GetLocation("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+	
 	glUniform1i(program.GetLocation("depthmap"), 2);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, gShadowFrameBuffer.GetTexture(0));
+	
+	glUniform1i(program.GetLocation("depthcube"), 3);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, gOminiShadowFrameBuffer.GetTexture(0));
+	glUniform1f(program.GetLocation("far_plane"), far_plane);
 
 	GLuint uLocMVP = program.GetLocation("mvp");
 	GLuint uLocM = program.GetLocation("M");
@@ -286,6 +303,7 @@ void RenderShadow(const GLScene & scene, glm::mat4 & lightSpaceMatrix)
 	glUniformMatrix4fv(gShadowShaderProg.GetLocation("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
 	glViewport(0, 0, wndWidth, wndHeight);
+
 	gShadowFrameBuffer.Bind();
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_POLYGON_OFFSET_FILL);
@@ -322,6 +340,81 @@ void RenderShadow(const GLScene & scene, glm::mat4 & lightSpaceMatrix)
 	gShadowFrameBuffer.Unbind();
 }
 
+void RenderOminidirectionShadow(const GLScene & scene, GLfloat zfar)
+{
+	gOminiShadowShaderProg.Use();
+
+	glViewport(0, 0, wndWidth, wndHeight);
+	gOminiShadowFrameBuffer.Bind();
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(4.0f, 4.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	GLfloat aspect = (GLfloat)wndWidth / (GLfloat)wndHeight;
+	GLfloat znear = 1.0f;
+	glm::mat4 shadowProj = glm::perspective(90.0f, aspect, znear, zfar);
+	glm::vec3 lightPos(scene.GetGLLight(1).GetParms().position[0],
+		scene.GetGLLight(1).GetParms().position[1],
+		scene.GetGLLight(1).GetParms().position[2]);
+
+	std::vector<glm::mat4> shadowTransforms;
+	shadowTransforms.push_back(shadowProj *
+		glm::lookAt(lightPos, lightPos + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+	shadowTransforms.push_back(shadowProj *
+		glm::lookAt(lightPos, lightPos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+	shadowTransforms.push_back(shadowProj *
+		glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+	shadowTransforms.push_back(shadowProj *
+		glm::lookAt(lightPos, lightPos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
+	shadowTransforms.push_back(shadowProj *
+		glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
+	shadowTransforms.push_back(shadowProj *
+		glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
+
+	glUniformMatrix3fv(gOminiShadowShaderProg.GetLocation("lightPos"), 1, GL_FALSE, glm::value_ptr(lightPos));
+	glUniform1f(gOminiShadowShaderProg.GetLocation("far_plane"), zfar);
+
+	glUniformMatrix4fv(gOminiShadowShaderProg.GetLocation("shadowMatrices[0]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[0]));
+	glUniformMatrix4fv(gOminiShadowShaderProg.GetLocation("shadowMatrices[1]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[1]));
+	glUniformMatrix4fv(gOminiShadowShaderProg.GetLocation("shadowMatrices[2]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[2]));
+	glUniformMatrix4fv(gOminiShadowShaderProg.GetLocation("shadowMatrices[3]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[3]));
+	glUniformMatrix4fv(gOminiShadowShaderProg.GetLocation("shadowMatrices[4]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[4]));
+	glUniformMatrix4fv(gOminiShadowShaderProg.GetLocation("shadowMatrices[5]"), 1, GL_FALSE, glm::value_ptr(shadowTransforms[5]));
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, gOminiShadowFrameBuffer.GetTexture(0));
+
+	const std::vector<GLObject *> & objects = scene.GetObjects();
+	for (int i = 0; i < objects.size(); i++)
+	{
+		GLTangentMeshObject * model = static_cast<GLTangentMeshObject *>((objects[i]));
+
+		glm::mat4 &m = model->GetTransform().GetTransformMatrix();
+		glUniformMatrix4fv(gShadowShaderProg.GetLocation("model"), 1, GL_FALSE, glm::value_ptr(m));
+
+		glEnableVertexAttribArray(0);
+
+		const GLMesh & mesh = model->Mesh();
+		const std::vector<tiny_gl::GLMesh::group_t> & groups = mesh.Groups();
+		for (int j = 0; j < groups.size(); j++)
+		{
+			const tiny_gl::GLMesh::group_t & group = groups[j];
+
+			glBindVertexArray(group.vaoid);
+			for (int k = 0; k < group.indexGroups.size(); k++)
+			{
+				GLuint ibo = group.indexGroups[k].ibo;
+
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+				glDrawElements(GL_TRIANGLES, group.indexGroups[k].numIndices, GL_UNSIGNED_INT, 0);
+			}
+		}
+	}
+
+	gOminiShadowFrameBuffer.Unbind();
+}
+
 
 void RenderFBO(const GLShaderProgram & program, const GLFrameBufferObject & fbo)
 {
@@ -352,8 +445,10 @@ void SetupShaderProgram()
 	gSceneShaderProg.SetRenderFunction(RenderSponza);
 
 	gShadowShaderProg = GLShaderProgram::LoadWithSeries(SCENE, "shadow");
+	gOminiShadowShaderProg = GLShaderProgram::LoadWithSeries(SCENE, "shadow_omini", BIT_VS | BIT_FS | BIT_GS);
 
 	gShadowFrameBuffer.Init(GLFrameBuffer::DEPTH, 1, wndWidth, wndHeight);
+	gOminiShadowFrameBuffer.Init(GLFrameBuffer::DEPTH_CUBE, 1, wndWidth, wndHeight);
 	
 }
 
@@ -364,17 +459,17 @@ void SetupScene()
 
 	gScene.CreateDirectionalLight(
 		glm::vec3(1.0, 1.0, 1.0), 
-		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
-		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
+		0.3f * glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
+		0.8f * glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
 		glm::vec3(1.0, 1.0, 1.0));
 
 	gScene.CreatePointLight(
 		glm::vec3(0.0, 500.0, 0.0),
-		glm::vec3(0.03, 0.005, 0.001),
-		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
+		0.3f * glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
+		0.7f * glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
 		glm::vec3(1.0, 1.0, 1.0),
-		0.0f,
-		0.001f,
+		0.01f,
+		0.0008f,
 		0.0f);
 
 	gScene.GetCamera().GetTransform().TranslateTo(glm::vec3(0, 600, 0));
