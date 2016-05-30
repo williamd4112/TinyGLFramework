@@ -124,3 +124,8 @@ tiny_gl::texture_data tiny_gl::load_png(const char* path)
 	}
 	return texture;
 }
+
+glm::vec3 tiny_gl::colorRGB(float r, float g, float b)
+{
+	return glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f);
+}

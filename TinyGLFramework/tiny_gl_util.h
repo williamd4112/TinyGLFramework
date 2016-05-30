@@ -22,4 +22,6 @@ namespace tiny_gl
 
 	void SetLightSource(const GLShaderProgram & program, std::string prefix, int lightID, const GLLight & light);
 	texture_data load_png(const char* path);
+
+	glm::vec3 colorRGB(float r, float g, float b);
 }

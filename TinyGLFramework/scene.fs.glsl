@@ -83,7 +83,7 @@ vec4 calc_dirLight(int light_id, float shadow)
 	float RdotE = max(dot(reflection, viewdir), 0.0);
 	specular = pow(RdotE, shininess) * specular_color * Material.specular.rgb;
 
-	return vec4(ambient + (1.0 - shadow) * (diffuse + specular), 1.0);
+	return vec4(ambient + 1.5 * (1.0 - shadow) * (diffuse + specular), 1.0);
 }
 
 float ShadowCalculation(vec4 fragPosLightSpace)
@@ -140,7 +140,7 @@ void main()
 	else
 	{
 		vec3 intensity = vec3(0, 0, 0);
-		for(int i = 1; i < 2; i++)
+		for(int i = 0; i < 1; i++)
 		{
 			// Calculate shadow
 			float shadow = 0.0;
@@ -161,7 +161,7 @@ void main()
 				float att = 1.0 / (LightSource[i].constantAttenuation +
 						LightSource[i].linearAttenuation * lightdist +
 						LightSource[i].quadraticAttenuation * lightdist * lightdist);
-				tmp *= att * 2.2;
+				tmp *= att * 1.2;
 			}
 			else
 			{
