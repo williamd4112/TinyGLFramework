@@ -3,6 +3,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+
 void tiny_gl::CheckError(const char *functionName)
 {
 	GLenum error;

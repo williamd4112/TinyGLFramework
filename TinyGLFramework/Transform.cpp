@@ -60,6 +60,8 @@ void tiny_gl::Transform::Rotate(const vec3 eulerAngles)
 	right = glm::normalize(vec3(glm::mat4_cast(qRoll) * vec4(right, 0.0)));
 
 	rotation = qRoll * qYaw * qPitch * rotation;
+	eulerAngle = glm::eulerAngles(rotation);
+
 	updateTransformMatrix();
 }
 
@@ -68,9 +70,6 @@ void tiny_gl::Transform::Rotate(const glm::vec3 axis, float angle)
 	rotation = glm::normalize(glm::angleAxis(angle, axis) * rotation);
 	updateTransformMatrix();
 	forward = glm::vec3(glm::mat4_cast(rotation) * glm::vec4(forward, 0.0));
-
-	//glm::vec3 rot = Rotation();
-	//printf("rot(%f, %f, %f)\n", glm::degrees(rot.x), glm::degrees(rot.y), (rot.z));
 }
 
 void tiny_gl::Transform::RotateEuler(const glm::vec3 eulerAngles)
@@ -88,9 +87,6 @@ void tiny_gl::Transform::RotateEuler(const glm::vec3 eulerAngles)
 	rotation = glm::quat(mRot);
 
 	updateTransformMatrix();
-
-	glm::vec3 rot = glm::eulerAngles(rotation);
-	printf("euler(%f, %f, %f)\n", glm::degrees(rot.x), glm::degrees(rot.y), (rot.z));
 }
 
 void tiny_gl::Transform::Scale(const glm::vec3 v)

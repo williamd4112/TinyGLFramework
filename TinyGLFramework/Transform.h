@@ -27,6 +27,7 @@ namespace tiny_gl
 		const glm::vec3 Forward() const { return forward; }
 		const glm::vec3 Right() const { return right; }
 		const glm::quat &Rotation() const { return rotation; }
+		const glm::vec3 EulerAngle() const { return eulerAngle; }
 		const glm::vec3 &Scale() const { return scale; }
 		const glm::vec3 Orientation();
 		const glm::quat &Quat() const { return rotation; }

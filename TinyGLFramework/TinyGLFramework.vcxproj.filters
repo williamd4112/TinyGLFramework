@@ -199,5 +199,11 @@
     <None Include="shadow_omini.gs.glsl">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="depth.fs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="depth.vs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

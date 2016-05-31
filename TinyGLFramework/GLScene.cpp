@@ -83,7 +83,7 @@ int32_t tiny_gl::GLScene::CreatePointLight(
 	float constantAtt, float linearAtt, float quadraticAtt)
 {
 	GLLight * light = new GLLight(POINT_LIGHT);
-	light->SetPosition(glm::vec4(pos, 0.0));
+	light->SetPosition(glm::vec4(pos, 1.0));
 	light->SetAmbient(vec4(ambient, 1.0));
 	light->SetDiffuse(vec4(diffuse, 1.0));
 	light->SetSpecular(vec4(specular, 1.0));

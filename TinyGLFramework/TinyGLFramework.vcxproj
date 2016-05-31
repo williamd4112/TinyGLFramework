@@ -179,6 +179,8 @@
     <ClInclude Include="Transform.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="depth.fs.glsl" />
+    <None Include="depth.vs.glsl" />
     <None Include="normal_map_test.cpp" />
     <None Include="scene.fs.glsl" />
     <None Include="fbo.fs.glsl" />

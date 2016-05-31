@@ -17,6 +17,7 @@ namespace tiny_gl
 		void Render(glm::mat4 & viewMatrix);
 		void initShader();
 	private:
+		GLuint skyboxVAO, skyboxVBO;
 		GLuint mTexture;
 		GLuint mLocViewMatrix;
 		GLShaderProgram mProgram;

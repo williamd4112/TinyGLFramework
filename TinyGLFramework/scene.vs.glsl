@@ -25,16 +25,16 @@ void main()
 	gl_Position = mvp * vec4(iv3vertex, 1.0);
 	vv2texcoord = iv2texcoord;
 
-	vec3 normal = mat3(N) * iv3normal;
-	vv3normal = normalize(normal);
+	vec3 normal = normalize(mat3(N) * iv3normal);
+	vv3normal = normal;
 
 	mat4 mv_matrix = V * M;
 	vec4 P = mv_matrix * vec4(iv3vertex, 1.0); 
-	vec3 n = normalize(mat3(mv_matrix) * iv3normal);
-	vec3 t = normalize(mat3(mv_matrix) * iv3tangent);  
+	vec3 n = normal;
+	vec3 t = normalize(mat3(N) * iv3tangent);  
 	vec3 b = cross(n, t);   
 
-	matTBN = transpose(mat3(
+	matTBN = inverse(mat3(
 		t,
 		b,
 		n

@@ -36,6 +36,9 @@ void tiny_gl::GLFrameBuffer::Bind()
 	case DEPTH:
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mTextureIDs.front(), 0);
 		break;
+	case DEPTH_CUBE:
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mTextureIDs.front(), 0);	
+		break;
 	case COLOR:
 		break;
 	default:
@@ -53,7 +56,7 @@ void tiny_gl::GLFrameBuffer::init_depth()
 	assert(mTextureIDs.size() == 1);
 
 	glBindTexture(GL_TEXTURE_2D, mTextureIDs.front());
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32,
 		mWidth, mHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

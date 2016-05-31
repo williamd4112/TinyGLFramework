@@ -4,6 +4,14 @@
 using namespace tiny_gl;
 using namespace tiny_ctrl;
 
+static struct {
+	int enable_normalmap;
+	bool use_lightview;
+	bool enable_msaa;
+	int shade_normal;
+	float dirLight_far;
+} gSceneShaderSetting{ 1, false, false, 0, 5000.0f };
+
 static GLubyte timer_cnt = 0;
 static bool timer_enabled = true;
 static unsigned int timer_speed = 30;
@@ -14,6 +22,8 @@ static GLShaderProgram gShadowShaderProg;
 static GLShaderProgram gOminiShadowShaderProg;
 static GLFrameBuffer gShadowFrameBuffer;
 static GLFrameBuffer gOminiShadowFrameBuffer;
+static GLFrameBufferObject gShadowVisualizer;
+static GLShaderProgram gShadowVisualizerProg;
 static GLScene gScene;
 static MouseControl gMouse;
 
@@ -38,7 +48,8 @@ int main(int argc, char *argv[])
 	wndHeight = 800;
 
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
+	glutSetOption(GLUT_MULTISAMPLE, 8);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH | GLUT_MULTISAMPLE);
 	glutInitWindowPosition(100, 100);
 	glutInitWindowSize(wndWidth, wndHeight);
 	glClearColor(1.0, 1.0, 1.0, 1.0);
@@ -84,8 +95,8 @@ void Timer(int val)
 {
 	float time = glutGet(GLUT_ELAPSED_TIME);
 	time *= 0.0001;
-	float r = 1000.0;
-	float scale = 0.008f;
+	float r = 150.0;
+	float scale = 0.01f;
 
 	timer_cnt++;
 	glutPostRedisplay();
@@ -94,16 +105,12 @@ void Timer(int val)
 		gScene.Update((float)timer_cnt / 255.0);
 		
 		GLLight & light = gScene.GetGLLight(1);
-		glm::vec3 v = gScene.GetCamera().GetTransform().Position();
+		glm::vec3 v;
+		v.x = cos(time) * r;
+		v.z = sin(time) * r;
+		v.y = 700.0;
 		light.SetPosition(glm::vec4(v, 1.0));
 
-		GLLight & light_d = gScene.GetGLLight(0);
-		glm::vec3 v_d = gScene.GetCamera().GetTransform().Position();
-		v_d.x = glm::cos(time) * r;
-		v_d.z = 0;
-		v_d.y = glm::sin(time) * r;
-		//light_d.SetPosition(glm::vec4(v_d, 1.0));
-		//gScene.GetGLObject(1).GetTransform().Rotate(glm::normalize(glm::vec3(1.0, 0.0, 0.0)));
 		glutTimerFunc(timer_speed, Timer, val);
 	}
 }
@@ -136,6 +143,12 @@ void Keyboard(unsigned char key, int x, int y)
 	case 'D': case 'd':
 		t.Translate(right * -forward_speed);
 		break;
+	case 'L': case 'l':
+		gSceneShaderSetting.use_lightview = !gSceneShaderSetting.use_lightview;
+		break;
+	case '0':
+		gSceneShaderSetting.enable_normalmap ^= 0x1;
+		break;
 	default:
 		break;
 	}
@@ -159,6 +172,8 @@ void PassiveMouse(int x, int y)
 			gScene.GetCamera().GetTransform().RotateEuler(glm::vec3(diff.y, 0, 0) * unit);
 		if (gMouse.Button() == GLUT_RIGHT_BUTTON)
 			gScene.GetCamera().GetTransform().RotateEuler(glm::vec3(diff.y, diff.x, 0) * unit);
+		auto v = gScene.GetCamera().GetTransform().EulerAngle();
+		printf("%f , %f , %f\n", v.x, v.y, v.z);
 		gMouse.Update(x, y);
 	}
 }
@@ -179,23 +194,29 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 		"shininess"
 	};
 
+	// Directional light shadow
 	const GLLight & directionalLight = scene.GetGLLight(0);
 	glm::vec3 pos(directionalLight.GetParms().position[0],
 		directionalLight.GetParms().position[1],
 		directionalLight.GetParms().position[2]);
-	GLfloat near_plane = 1.0f, far_plane = 17.5f;
-	glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+	GLfloat near_plane = 1.0f, far_plane = gSceneShaderSetting.dirLight_far;
+	glm::mat4 lightProjection = glm::ortho(-far_plane / 2.0f, far_plane / 2.0f, -far_plane / 2.0f, far_plane / 2.0f, near_plane, far_plane);
 	glm::mat4 lightView = glm::lookAt(pos,
 		glm::vec3(0.0f, 0.0f, 0.0f),
 		glm::vec3(0.0f, 1.0f, 0.0f));
 	glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+
+	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
 	RenderShadow(gScene, lightSpaceMatrix);
 	glCullFace(GL_BACK);
+	glDisable(GL_CULL_FACE);
 
-	glCullFace(GL_FRONT);
-	RenderOminidirectionShadow(scene, far_plane);
-	glCullFace(GL_BACK);
+	// Point light shadow
+	float omini_far = 7.5;
+	//glCullFace(GL_FRONT);
+	RenderOminidirectionShadow(scene, omini_far);
+	//glCullFace(GL_BACK);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0, wndWidth, wndHeight);
@@ -210,6 +231,18 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 	scene.GetSkybox().Render(camera.GetViewProjectionMatrix());	
 
 	program.Use();
+	
+	if (gSceneShaderSetting.enable_msaa)
+	{
+		glEnable(GL_MULTISAMPLE);
+		glHint(GL_MULTISAMPLE_FILTER_HINT_NV, GL_NICEST);
+	}
+	else
+	{
+		glDisable(GL_MULTISAMPLE);
+	}
+
+	glUniform1i(program.GetLocation("Mode"), gSceneShaderSetting.shade_normal);
 	glUniformMatrix4fv(program.GetLocation("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 	
 	glUniform1i(program.GetLocation("depthmap"), 2);
@@ -219,7 +252,7 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 	glUniform1i(program.GetLocation("depthcube"), 3);
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, gOminiShadowFrameBuffer.GetTexture(0));
-	glUniform1f(program.GetLocation("far_plane"), far_plane);
+	glUniform1f(program.GetLocation("far_plane"), omini_far);
 
 	GLuint uLocMVP = program.GetLocation("mvp");
 	GLuint uLocM = program.GetLocation("M");
@@ -249,9 +282,9 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 		GLTangentMeshObject * model = static_cast<GLTangentMeshObject *>((objects[i]));
 
 		glm::mat4 &m = model->GetTransform().GetTransformMatrix();
-		glm::mat4 v = camera.GetViewMatrix();
-		glm::mat4 p = camera.GetProjectionMatrix();
-		glm::mat4 &vp = camera.GetViewProjectionMatrix();
+		glm::mat4 v = (gSceneShaderSetting.use_lightview) ? lightView : camera.GetViewMatrix();
+		glm::mat4 p = (gSceneShaderSetting.use_lightview) ? lightProjection : camera.GetProjectionMatrix();
+		glm::mat4 &vp = (gSceneShaderSetting.use_lightview) ? lightSpaceMatrix : camera.GetViewProjectionMatrix();
 		glm::mat4 n = transpose(inverse(v * m));
 
 		glm::mat4 mvp = vp * m * glm::mat4(1.0);
@@ -260,12 +293,7 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 		glUniformMatrix4fv(uLocV, 1, GL_FALSE, glm::value_ptr(v));
 		glUniformMatrix4fv(uLocP, 1, GL_FALSE, glm::value_ptr(p));
 		glUniformMatrix4fv(uLocN, 1, GL_FALSE, glm::value_ptr(n));
-		glUniform3fv(uLocE, 1, glm::value_ptr(camera.GetTransform().Position()));
-
-		glEnableVertexAttribArray(0);
-		glEnableVertexAttribArray(1);
-		glEnableVertexAttribArray(2);
-		glEnableVertexAttribArray(3);
+		glUniform3fv(uLocE, 1, (gSceneShaderSetting.use_lightview) ? glm::value_ptr(pos) : glm::value_ptr(camera.GetTransform().Position()));
 
 		const GLMesh & mesh = model->Mesh();
 		const std::vector<tiny_gl::GLMesh::group_t> & groups = mesh.Groups();
@@ -274,23 +302,35 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 			const tiny_gl::GLMesh::group_t & group = groups[j];
 
 			glBindVertexArray(group.vaoid);
+			glEnableVertexAttribArray(0);
+			glEnableVertexAttribArray(1);
+			glEnableVertexAttribArray(2);
+			glEnableVertexAttribArray(3);
 			for (int k = 0; k < group.indexGroups.size(); k++)
 			{
 				GLint matid = group.indexGroups[k].matid;
 				GLuint ibo = group.indexGroups[k].ibo;
-				tinyobj::material_t mat = mesh.Materials()[matid];
+				const tinyobj::material_t & mat = mesh.Materials()[matid];
 
 				glUniform1i(program.GetLocation("sampler"), 0);
 				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_2D, mesh.Textures()[matid].diffuseid);
 
-				glUniform1i(program.GetLocation("normalmap"), 1);
-				glActiveTexture(GL_TEXTURE1);
-				glBindTexture(GL_TEXTURE_2D, mesh.Textures()[matid].bumpid);
+				if(mesh.Textures()[matid].bumpid)
+				{
+					glUniform1i(program.GetLocation("enable_normalmap"), gSceneShaderSetting.enable_normalmap);
+					glUniform1i(program.GetLocation("normalmap"), 1);
+					glActiveTexture(GL_TEXTURE1);
+					glBindTexture(GL_TEXTURE_2D, mesh.Textures()[matid].bumpid);
+				}
+				else
+				{
+					glUniform1i(program.GetLocation("enable_normalmap"), 0);
+				}
 
 				if (mesh.Textures()[matid].specularid)
 				{
-					glUniform1i(program.GetLocation("enable_specularMap"), 1);
+					glUniform1i(program.GetLocation("enable_specularMap"), 0);
 					glUniform1i(program.GetLocation("specularmap"), 4);
 					glActiveTexture(GL_TEXTURE4);
 					glBindTexture(GL_TEXTURE_2D, mesh.Textures()[matid].specularid);
@@ -310,6 +350,37 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 			}
 		}
 	}
+
+	static const GLfloat window_vertex[] = {
+		//vec2 position vec2 texture_coord 
+		1.0f,-1.0f,1.0f,0.0f,
+		-1.0f,-1.0f,0.0f,0.0f,
+		-1.0f,1.0f,0.0f,1.0f,
+		1.0f,1.0f,1.0f,1.0f
+	};
+
+	gShadowVisualizerProg.Use();
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glViewport(0, 0, wndWidth / 4, wndHeight / 4);
+	glDisable(GL_DEPTH_TEST);
+	GLuint vao, vbo;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(window_vertex), window_vertex, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 4, 0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 4, (const GLvoid*)(sizeof(GL_FLOAT) * 2));
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+
+	glUniform1i(gShadowVisualizerProg.GetLocation("depthMap"), 0);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gShadowFrameBuffer.GetTexture(0));
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
 void RenderShadow(const GLScene & scene, glm::mat4 & lightSpaceMatrix)
@@ -466,31 +537,34 @@ void SetupShaderProgram()
 	gShadowFrameBuffer.Init(GLFrameBuffer::DEPTH, 1, wndWidth, wndHeight);
 	gOminiShadowFrameBuffer.Init(GLFrameBuffer::DEPTH_CUBE, 1, wndWidth, wndHeight);
 	
+	gShadowVisualizer.Init(1, wndWidth, wndHeight);
+	gShadowVisualizerProg = GLShaderProgram::LoadWithSeries(SCENE, "depth", BIT_VS | BIT_FS);
 }
 
 void SetupScene()
 {
-	gScene.CreatePerspectiveCamera(60.0f, 0.3f, 3000.0f, (800 / 800));
+	gScene.CreatePerspectiveCamera(60.0f, 0.3f, 10000.0f, (800 / 800));
 	gScene.CreateTangentMeshObject("sponza.obj");
 	int knight_id = gScene.CreateTangentMeshObject("knight.obj");
 	gScene.GetGLObject(knight_id).GetTransform().ScaleTo(glm::vec3(10.0, 10.0, 10.0));
+	//gScene.GetGLObject(knight_id).GetTransform().TranslateTo(glm::vec3(.0, 1500.0, 0.0));
 
 	gScene.CreateDirectionalLight(
-		glm::vec3(1.0, 1.0, 1.0), 
-		colorRGB(216.0, 169.0, 114.0),
-		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
-		glm::vec3(255.0 / 255.0, 189.0 / 255.0, 112.0 / 255.0));
+		glm::vec3(0.001f, 3000.0f, 0.0f), 
+		colorRGB(255.0, 255.0, 255.0),
+		colorRGB(255.0, 255.0, 255.0),
+		colorRGB(255.0, 255.0, 255.0));
 
 	gScene.CreatePointLight(
 		glm::vec3(0.0, 500.0, 0.0),
-		0.1f * glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
-		1.0f * glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
+		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
+		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
 		glm::vec3(255.0 / 255.0, 205.0 / 255.0, 148.0 / 255.0),
 		0.0f,
-		0.0005f,
+		0.002f,
 		0.0f);
 
-	gScene.GetCamera().GetTransform().TranslateTo(glm::vec3(0, 150, 150));
+	gScene.GetCamera().GetTransform().TranslateTo(glm::vec3(0, 500, 0));
 
 	const char *skybox_filenames[6] = {
 		"mountaincube_02.jpg",
@@ -507,29 +581,50 @@ void SetupScene()
 void SpecialKeyboard(int key, int x, int y)
 {
 	float unit = 0.0001;
-	Transform & transform = gScene.GetGLObject(1).GetTransform();
+	GLLight & light_d = gScene.GetGLLight(0);
+	Transform td;
+	td.TranslateTo(glm::vec3(light_d.GetParms().position[0], light_d.GetParms().position[1], light_d.GetParms().position[2]));
+	
+	float newPos[3];
+
+	//Transform & transform = gScene.GetGLObject(1).GetTransform();
 	switch (key)
 	{
 	case GLUT_KEY_LEFT:
-		transform.Rotate(glm::normalize(unit * glm::vec3(0.0, 1.0, 0.0)));
+		//transform.Rotate(glm::normalize(unit * glm::vec3(0.0, 1.0, 0.0)));
+		td.Translate(glm::normalize(unit * glm::vec3(-1.0, 0.0, 0.0)));
+		light_d.SetPosition(glm::vec4(td.Position(), 1.0));
 		break;
 	case GLUT_KEY_RIGHT:
-		transform.Rotate(glm::normalize(unit * glm::vec3(0.0, -1.0, 0.0)));
+		//transform.Rotate(glm::normalize(unit * glm::vec3(0.0, -1.0, 0.0)));
+		td.Translate(glm::normalize(unit * glm::vec3(1.0, 0.0, 0.0)));
+		light_d.SetPosition(glm::vec4(td.Position(), 1.0));
 		break;
 	case GLUT_KEY_UP:
-		transform.Rotate(glm::normalize(unit * glm::vec3(1.0, 0.0, 0.0)));
+		//transform.Rotate(glm::normalize(unit * glm::vec3(1.0, 0.0, 0.0)));
+		td.Translate(glm::normalize(unit * glm::vec3(0.0, 0.0, 1.0)));
+		light_d.SetPosition(glm::vec4(td.Position(), 1.0));
 		break;
 	case GLUT_KEY_DOWN:
-		transform.Rotate(glm::normalize(unit * glm::vec3(-1.0, 0.0, 0.0)));
+		//transform.Rotate(glm::normalize(unit * glm::vec3(-1.0, 0.0, 0.0)));
+		td.Translate(glm::normalize(unit * glm::vec3(0.0, 0.0, -1.0)));
+		light_d.SetPosition(glm::vec4(td.Position(), 1.0));
+		break;
+	case GLUT_KEY_CTRL_L:
+		scanf("%f%f%f",&newPos[0], &newPos[1], &newPos[2]);
+		light_d.SetPosition(glm::vec4(newPos[0], newPos[1], newPos[2], 0.0));
+		break;
+	case GLUT_KEY_ALT_L:
+		scanf("%f", &newPos[0]);
+		gSceneShaderSetting.dirLight_far = newPos[0];
+		break;
+	case GLUT_KEY_F1:
+		gSceneShaderSetting.shade_normal ^= 0x1;
+		break;
+	case GLUT_KEY_F2:
+		gSceneShaderSetting.enable_msaa = !gSceneShaderSetting.enable_msaa;
 		break;
 	default:
 		break;
 	}
-
-	//glm::vec3 forward = gScene.GetCamera().GetTransform().Forward();
-	//glm::vec3 right = gScene.GetCamera().GetTransform().Right();
-	//glm::vec3 up = gScene.GetCamera().GetTransform().Up();
-	//printf("forward(%f, %f, %f)\n", forward.x, forward.y, forward.z);
-	//printf("right(%f, %f, %f)\n", right.x, right.y, right.z);
-	//printf("up(%f, %f, %f)\n", up.x, up.y, up.z);
 }

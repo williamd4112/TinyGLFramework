@@ -5,7 +5,7 @@
 
 #define BIT_VS 0x1
 #define BIT_FS 0x2
-#define BIT_GS 0x3
+#define BIT_GS 0x4
 
 namespace tiny_gl
 {
@@ -50,6 +50,7 @@ namespace tiny_gl
 		virtual void Render(const GLFrameBufferObject & fbo);
 		ShaderProgramType GetType() { return mType; }
 		GLuint GetLocation(std::string name) const { return glGetUniformLocation(mProgramId, name.c_str()); }
+		GLuint GetLocation(const char* name) const { return glGetUniformLocation(mProgramId, name); }
 	protected:
 		ShaderProgramType mType;
 		GLuint mProgramId;
