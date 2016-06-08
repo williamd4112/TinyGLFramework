@@ -71,10 +71,10 @@ namespace tiny_gl
 
 		void SetPosition(const glm::vec4 & v)
 		{
-			mLightParams.position[0] = v.r;
-			mLightParams.position[1] = v.g;
-			mLightParams.position[2] = v.b;
-			mLightParams.position[3] = v.a;
+			mLightParams.position[0] = v.x;
+			mLightParams.position[1] = v.y;
+			mLightParams.position[2] = v.z;
+			mLightParams.position[3] = v.w;
 		}
 
 		void SetHalfVector(const glm::vec4 & v)

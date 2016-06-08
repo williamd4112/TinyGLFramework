@@ -193,6 +193,8 @@
     <None Include="shadow_omini.fs.glsl" />
     <None Include="shadow_omini.gs.glsl" />
     <None Include="shadow_omini.vs.glsl" />
+    <None Include="skybox.fs.glsl" />
+    <None Include="skybox.vs.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

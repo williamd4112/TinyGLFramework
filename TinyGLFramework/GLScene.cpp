@@ -123,8 +123,7 @@ void tiny_gl::GLScene::CreateSkybox(std::vector<std::string> & filenames)
 
 void tiny_gl::GLScene::CreateSkybox(std::string filename)
 {
-	mSkybox = new GLSkybox;
-	mSkybox->Load(filename);
+	assert(false);
 }
 
 void tiny_gl::GLScene::Update(float t)

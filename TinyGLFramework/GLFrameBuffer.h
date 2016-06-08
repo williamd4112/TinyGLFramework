@@ -26,6 +26,7 @@ namespace tiny_gl
 		int mWidth;
 		int mHeight;
 		GLuint mFrameBufferID;
+		GLuint mDepthRbo; // For color buffer
 		std::vector<GLuint> mTextureIDs;
 
 		void init_depth();

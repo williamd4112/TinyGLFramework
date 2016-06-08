@@ -205,5 +205,11 @@
     <None Include="depth.vs.glsl">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="skybox.fs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="skybox.vs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

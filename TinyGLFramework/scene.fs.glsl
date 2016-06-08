@@ -43,7 +43,6 @@ struct MaterialParameters {
 uniform MaterialParameters Material;
 uniform LightSourceParameters LightSource[3];
 
-uniform vec3 lightPos;
 uniform float far_plane;
 uniform vec3 E;
 uniform int Mode;
@@ -116,7 +115,7 @@ vec4 calc_dirLight(int light_id, float shadow)
 				LightSource[light_id].quadraticAttenuation * lightdist * lightdist);
 	}
 
-	return att * vec4(0.65 * ambient + (1 - shadow) * (2.75 * diffuse + 3.5 * specular), 1.0);
+	return att * vec4(0.75 * ambient + (1 - shadow) * (2.0 * diffuse + 3.5 * specular), 1.0);
 }
 
 float ShadowCalculation(vec4 fragPosLightSpace)
@@ -128,7 +127,7 @@ float ShadowCalculation(vec4 fragPosLightSpace)
 	float closestDepth = texture(depthmap, projCoords.xy).r; 
 	float currentDepth = projCoords.z;  
 
-	float bias = 0.001; 
+	float bias = 0.005; 
 	float shadow = 0.0;
 	vec2 texelSize = 1.0 / textureSize(depthmap, 0);
 	int len = 3;
@@ -145,10 +144,13 @@ float ShadowCalculation(vec4 fragPosLightSpace)
 	if(projCoords.z > 1.0)
         return 0.0;
 	else
-		return currentDepth > closestDepth  ? 1.0 : 0.0;  
+	{
+		return shadow;
+		//return currentDepth - bias > closestDepth  ? 1.0 : 0.0;  
+	}
 }
 
-float OminiShadowCalculation(vec3 fragPos)
+float OminiShadowCalculation(vec3 fragPos, vec3 lightPos)
 {
     // Get vector between fragment position and light position
     vec3 fragToLight = fragPos - lightPos;
@@ -199,13 +201,13 @@ void main()
 			float shadow = 0.0;
 		    if(bool(LightSource[i].type & 0x1))
 			{
-				shadow = OminiShadowCalculation(worldPos);  
+				shadow = OminiShadowCalculation(worldPos, vec3(LightSource[i].position));  
 			}
 			else if(LightSource[i].type == 0)
 			{
 				shadow = ShadowCalculation(vv4posLightSpace);  
 			}
-						// Calculate light
+			// Calculate light
 			vec3 tmp = calc_dirLight(i, shadow).rgb;
 			intensity = intensity + tmp;
 		}
@@ -232,7 +234,7 @@ void main()
 		if(Mode == 0)
 		{
 			fragColor = vec4(color.rgb * intensity, color.a);
-			//fragColor = atmospheric(fragColor);
+			//fragColor = vec4(vec3(OminiShadowCalculation(worldPos, vec3(LightSource[1].position))), 1.0);
 		}
 		else if(Mode == 1)
 			fragColor = vec4(normal, 1.0);

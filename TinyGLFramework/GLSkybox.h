@@ -13,13 +13,13 @@ namespace tiny_gl
 		~GLSkybox() {}
 
 		void Load(std::vector<std::string> & filenames);
-		void Load(std::string merged_filename);
-		void Render(glm::mat4 & viewMatrix);
+		void Render(glm::vec3 cameraPosition, glm::mat4 & viewMatrix, glm::mat4 & projMatrix);
 		void initShader();
 	private:
 		GLuint skyboxVAO, skyboxVBO;
 		GLuint mTexture;
 		GLuint mLocViewMatrix;
+		GLuint mLocProjMatrix;
 		GLShaderProgram mProgram;
 	};
 }
