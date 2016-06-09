@@ -1,21 +1,8 @@
 #version 410
 
 layout(location = 0) out vec4 fragColor;
-
-in vec3 vv3normal;
-in vec3 vv3tangent;
-in vec2 vv2texcoord;
-in mat3 matTBN;
-in vec3 worldPos;
-in vec4 vv4posLightSpace;
-
-uniform sampler2D sampler;   
-uniform sampler2D normalmap;
-uniform sampler2D depthmap;
-uniform samplerCube depthcube;
-uniform sampler2D specularmap;
-
-in vec3 vv3pos;
+layout (location = 1) out vec4 waterNormalMaskColor;
+layout (location = 2) out vec4 glowMaskColor;
 
 struct LightSourceParameters {
 	int type;
@@ -40,6 +27,24 @@ struct MaterialParameters {
 	float shininess;
 };
 
+in vec3 vv3normal;
+in vec3 vv3tangent;
+in vec2 vv2texcoord;
+in vec3 vv3texcoord;
+in mat3 matTBN;
+in vec3 worldPos;
+in vec4 vv4posLightSpace;
+in vec3 vv3pos;
+
+uniform sampler2D sampler;   
+uniform sampler2D normalmap;
+uniform sampler2D depthmap;
+uniform samplerCube depthcube;
+uniform sampler2D specularmap;
+uniform samplerCube skybox;
+uniform int objectVariant;
+uniform float glowIntensity;
+
 uniform MaterialParameters Material;
 uniform LightSourceParameters LightSource[3];
 
@@ -49,6 +54,7 @@ uniform int Mode;
 uniform int enable_specularMap = 0;
 uniform int enable_normalmap = 1;
 uniform mat4 M, V;
+uniform int isReflect;
 
 uniform int fog_type = 2;
 const vec4 fogColor = vec4(0.5, 0.5, 0.5,1.0);
@@ -62,10 +68,6 @@ vec3 normal = vec3(0.0);
 vec4 calc_dirLight(int light_id, float shadow)
 {
 	vec3 vertex_pos = vv3pos;
-	normal = (enable_normalmap == 1) ? 
-		(texture(normalmap, vv2texcoord).rgb * 2.0 - vec3(1.0)) :
-		(vv3normal);
-	normal = normalize(normal);
 
 	float shininess = (enable_specularMap == 1) ? texture(specularmap, vv2texcoord).r * 128.0 : Material.shininess;
 	shininess = clamp(shininess, 1.0, 128.0);
@@ -115,7 +117,7 @@ vec4 calc_dirLight(int light_id, float shadow)
 				LightSource[light_id].quadraticAttenuation * lightdist * lightdist);
 	}
 
-	return att * vec4(0.75 * ambient + (1 - shadow) * (2.0 * diffuse + 3.5 * specular), 1.0);
+	return att * vec4(ambient + (1 - shadow) * (diffuse + 1.5 * specular), 1.0);
 }
 
 float ShadowCalculation(vec4 fragPosLightSpace)
@@ -186,57 +188,79 @@ vec4 atmospheric(vec4 color)
 
 void main() 
 {
-	vec4 color = texture2D(sampler, vv2texcoord.st).rgba;
-
-	if(color.a < 0.5)
-		discard;
+	if(objectVariant == -1)
+	{
+		fragColor = texture(skybox, vv3texcoord);
+	}
 	else
 	{
-		int start = 0;
-		int numLight = 1;
-		vec3 intensity = vec3(0, 0, 0);
-		for(int i = start; i < numLight; i++)
-		{
-			// Calculate shadow
-			float shadow = 0.0;
-		    if(bool(LightSource[i].type & 0x1))
-			{
-				shadow = OminiShadowCalculation(worldPos, vec3(LightSource[i].position));  
-			}
-			else if(LightSource[i].type == 0)
-			{
-				shadow = ShadowCalculation(vv4posLightSpace);  
-			}
-			// Calculate light
-			vec3 tmp = calc_dirLight(i, shadow).rgb;
-			intensity = intensity + tmp;
-		}
+		vec4 color = texture2D(sampler, vv2texcoord.st).rgba;
 
-		float dist = length(vv3pos);
-		switch(fog_type)
+		if(color.a < 0.5)
+			discard;
+		else
 		{
-			case 0: //Linear
-				fogFactor = (fog_end - dist) / (fog_end - fog_start);
-				break;
-			case 1: //Exp
-				fogFactor = 1.0 /exp(dist * fogDensity);
-				break;
-			case 2: //Exp sqare
-				fogFactor = 1.0 /exp( (dist * fogDensity) * (dist * fogDensity));
-				break;
-			default:
-				break;
-		}
-		fogFactor = 1.0 / exp(dist * fogDensity);	
-		fogFactor = clamp(fogFactor, 0.0, 1.0 );
+			int start = 0;
+			int numLight = 1;
+			vec3 intensity = vec3(0, 0, 0);
+			for(int i = start; i < numLight; i++)
+			{
+				// Calculate shadow
+				float shadow = 0.0;
+				if(bool(LightSource[i].type & 0x1))
+				{
+					shadow = OminiShadowCalculation(worldPos, vec3(LightSource[i].position));  
+				}
+				else if(LightSource[i].type == 0)
+				{
+					shadow = ShadowCalculation(vv4posLightSpace);  
+				}
+				// Calculate light
+				normal = (enable_normalmap == 1) ? 
+					(texture(normalmap, vv2texcoord).rgb * 2.0 - vec3(1.0)) :
+					(vv3normal);
+				normal = normalize(normal);
+				vec3 tmp = calc_dirLight(i, shadow).rgb;
+				intensity = intensity + tmp;
+			}
 
-		//fragColor = vec4(texture(depthmap, vv2texcoord).rgb, color.a);
-		if(Mode == 0)
-		{
-			fragColor = vec4(color.rgb * intensity, color.a);
-			//fragColor = vec4(vec3(OminiShadowCalculation(worldPos, vec3(LightSource[1].position))), 1.0);
+			float dist = length(vv3pos);
+			switch(fog_type)
+			{
+				case 0: //Linear
+					fogFactor = (fog_end - dist) / (fog_end - fog_start);
+					break;
+				case 1: //Exp
+					fogFactor = 1.0 /exp(dist * fogDensity);
+					break;
+				case 2: //Exp sqare
+					fogFactor = 1.0 /exp( (dist * fogDensity) * (dist * fogDensity));
+					break;
+				default:
+					break;
+			}
+			fogFactor = 1.0 / exp(dist * fogDensity);	
+			fogFactor = clamp(fogFactor, 0.0, 1.0 );
+
+			//fragColor = vec4(texture(depthmap, vv2texcoord).rgb, color.a);
+			if(Mode == 0)
+			{
+				if(objectVariant != 1)
+					fragColor = vec4(color.rgb * intensity, color.a);
+
+				glowMaskColor = vec4( color.r * glowIntensity, color.g * glowIntensity, color.b * glowIntensity, 1.0);
+
+				if(objectVariant == 1) {
+					normal = color.rgb * 2.0 - vec3(1.0);
+					waterNormalMaskColor = vec4(calc_dirLight(0, ShadowCalculation(vv4posLightSpace)).rgb, 1.0);
+				}
+				else 
+					waterNormalMaskColor = vec4(0.0, 0.0, 0.0, 0.0);
+
+				//fragColor = vec4(vec3(OminiShadowCalculation(worldPos, vec3(LightSource[1].position))), 1.0);
+			}
+			else if(Mode == 1)
+				fragColor = vec4(normal, 1.0);
 		}
-		else if(Mode == 1)
-			fragColor = vec4(normal, 1.0);
 	}
 }

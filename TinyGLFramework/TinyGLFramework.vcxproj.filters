@@ -211,5 +211,23 @@
     <None Include="skybox.vs.glsl">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="glow.fs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="glow.vs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="reflect.fs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="reflect.vs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="water.fs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="water.vs.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

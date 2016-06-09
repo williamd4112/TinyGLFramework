@@ -181,7 +181,11 @@
   <ItemGroup>
     <None Include="depth.fs.glsl" />
     <None Include="depth.vs.glsl" />
+    <None Include="glow.fs.glsl" />
+    <None Include="glow.vs.glsl" />
     <None Include="normal_map_test.cpp" />
+    <None Include="reflect.fs.glsl" />
+    <None Include="reflect.vs.glsl" />
     <None Include="scene.fs.glsl" />
     <None Include="fbo.fs.glsl" />
     <None Include="final.fs.glsl" />
@@ -195,6 +199,8 @@
     <None Include="shadow_omini.vs.glsl" />
     <None Include="skybox.fs.glsl" />
     <None Include="skybox.vs.glsl" />
+    <None Include="water.fs.glsl" />
+    <None Include="water.vs.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

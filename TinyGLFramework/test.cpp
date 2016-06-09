@@ -14,6 +14,12 @@ static struct {
 	int shadow_height;
 } gSceneShaderSetting{ 1, false, false, 0, 10000.0f, 8192, 8192 };
 
+static struct
+{
+	GLuint waterDuDv;
+	float waterPlaneHeight;
+} gWaterConfig{ 0, 60.0f };
+
 static GLubyte timer_cnt = 0;
 static bool timer_enabled = true;
 static unsigned int timer_speed = 30;
@@ -21,12 +27,18 @@ static int wndWidth, wndHeight;
 
 static GLShaderProgram gSceneShaderProg;
 static GLShaderProgram gReflectProg;
+static GLShaderProgram gWaterProg;
+static GLShaderProgram gGlowProg;
 static GLShaderProgram gShadowShaderProg;
 static GLShaderProgram gOminiShadowShaderProg;
+static GLShaderProgram gShadowVisualizerProg;
 static GLFrameBuffer gShadowFrameBuffer;
 static GLFrameBuffer gOminiShadowFrameBuffer;
 static GLFrameBufferObject gShadowVisualizer;
-static GLShaderProgram gShadowVisualizerProg;
+static GLFrameBufferObject gReflectionFrameBuffer;
+static GLFrameBufferObject gGlowFrameBuffer;
+static GLFrameBufferObject gWaterFrameBuffer;
+
 static GLScene gScene;
 static MouseControl gMouse;
 
@@ -38,11 +50,15 @@ static void SpecialKeyboard(int key, int x, int y);
 static void Mouse(int button, int state, int x, int y);
 static void PassiveMouse(int x, int y);
 
-static void RenderSponza(const GLShaderProgram &, const GLScene &);
+static void RenderSponza(const GLShaderProgram &, const GLScene &, int reflect);
 static void RenderShadow(const GLScene &, glm::mat4 & lightSpaceMatrix);
 static void RenderFBO(const GLShaderProgram &, const GLFrameBufferObject &);
+static void RenderWaterFBO(const GLShaderProgram & program, const GLFrameBufferObject & fbo);
+static void RenderReflection(const GLShaderProgram & program, const GLScene & scene);
 static void RenderDebugDepthMap();
 static glm::mat4 CalculateLightMatrix(const GLLight & directionalLight);
+static void SetupWaterTexture();
+static void BindScreenFrameBuffer();
 
 static void SetupShaderProgram();
 static void SetupScene();
@@ -84,7 +100,41 @@ int main(int argc, char *argv[])
 
 void Display()
 {
-	RenderSponza(gSceneShaderProg, gScene);
+	GLFrameBufferObject screenFbo(wndWidth, wndHeight);
+
+	// Setup AA
+	SetupAA(gSceneShaderSetting.enable_msaa);
+
+	// Directional light shadow
+	const GLLight & directionalLight = gScene.GetGLLight(0);
+	glm::mat4 lightSpaceMatrix = CalculateLightMatrix(directionalLight);
+
+	// Render shadow map
+	RenderShadow(gScene, lightSpaceMatrix);
+
+	// Render reflection
+	gReflectionFrameBuffer.BindFBO();
+	gReflectProg.Render(gScene);
+
+	gWaterFrameBuffer.BindFBO();
+	RenderSponza(gSceneShaderProg, gScene, 0);
+
+	gGlowFrameBuffer.BindFBO();
+	gWaterProg.Render(gWaterFrameBuffer);
+
+	screenFbo.BindFBO();
+	gGlowProg.Render(gGlowFrameBuffer);
+
+	//GLFrameBufferObject screenFbo(wndWidth, wndHeight);
+	//screenFbo.BindFBO();
+	/*gWaterProg.Render(gWaterFrameBuffer);*/
+
+	////gGlowFrameBuffer.BindFBO();
+	//gWaterProg.Render(gWaterFrameBuffer);
+	////GLFrameBufferObject screenFbo(wndWidth, wndHeight);
+	////screenFbo.BindFBO();
+	////gGlowProg.Render(gGlowFrameBuffer);
+
 	glutSwapBuffers();
 }
 
@@ -185,7 +235,7 @@ void PassiveMouse(int x, int y)
 	}
 }
 
-void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
+void RenderSponza(const GLShaderProgram & program, const GLScene & scene, int reflect)
 {
 #define MATERIAL_NUM_PROPS 4
 #define POS_MAT_AMBIENT 0
@@ -203,28 +253,21 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 		"shininess"
 	};
 
-	// Setup AA
-	SetupAA(gSceneShaderSetting.enable_msaa);
-
 	// Directional light shadow
-	const GLLight & directionalLight = scene.GetGLLight(0);
+	const GLLight & directionalLight = gScene.GetGLLight(0);
 	glm::mat4 lightSpaceMatrix = CalculateLightMatrix(directionalLight);
 
-	// Render shadow map
-	RenderShadow(gScene, lightSpaceMatrix);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//gWaterFrameBuffer.BindFBO();
 	glViewport(0, 0, wndWidth, wndHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	GLCamera & camera = scene.GetCamera();
 	
 	// Draw skybox
-	scene.GetSkybox().Render(camera.GetTransform().Position(), camera.GetViewMatrix(), camera.GetProjectionMatrix());
+	//scene.GetSkybox().Render(camera.GetTransform().Position(), camera.GetViewMatrix(), camera.GetProjectionMatrix());
 
 	// Render scene
 	program.Use();
@@ -232,6 +275,8 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 	// Setup shading mode
 	glUniform1i(program.GetLocation("Mode"), gSceneShaderSetting.shade_normal);
 	glUniformMatrix4fv(program.GetLocation("lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+	glUniform1i(program.GetLocation("isReflect"), reflect);
+	glUniform1f(program.GetLocation("waterHeight"), gWaterConfig.waterPlaneHeight);
 	
 	// Shadow map
 	glUniform1i(program.GetLocation("depthmap"), 2);
@@ -244,6 +289,8 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 	GLuint uLocP = program.GetLocation("P");
 	GLuint uLocN = program.GetLocation("N");
 	GLuint uLocE = program.GetLocation("E");
+	GLuint uLocObjVariant = program.GetLocation("objectVariant");
+	GLuint uLocGlowIntensity = program.GetLocation("glowIntensity");
 	GLuint iLocMaterial[MATERIAL_NUM_PROPS];
 	char str[256];
 	for (int i = 0; i < MATERIAL_NUM_PROPS; i++)
@@ -261,10 +308,28 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 
 	glm::mat4 v = camera.GetViewMatrix();
 	glm::mat4 p = camera.GetProjectionMatrix();
+	glUniform3fv(uLocE, 1, glm::value_ptr(camera.GetTransform().Position()));
+
+	// Render skybox
+	glUniformMatrix4fv(uLocV, 1, GL_FALSE, glm::value_ptr(v));
+	glUniformMatrix4fv(uLocP, 1, GL_FALSE, glm::value_ptr(p));
+	glUniform1i(uLocObjVariant, -1);
+	GLSkybox & skybox = gScene.GetSkybox();
+	glDepthMask(GL_FALSE);
+	glActiveTexture(GL_TEXTURE5);
+	glUniform1i(program.GetLocation("skybox"), 5);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.GetTextureID());
+	skybox.BindVAO();
+	glEnableVertexAttribArray(0);
+	glDrawArrays(GL_TRIANGLES, 0, 36);
+	glDepthMask(GL_TRUE);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+	glBindVertexArray(0);
+
 	const std::vector<GLObject *> & objects = scene.GetObjects();
 	for (int i = 0; i < objects.size(); i++)
 	{
-		GLTangentMeshObject * model = static_cast<GLTangentMeshObject *>((objects[i]));
+		GLMeshObject * model = static_cast<GLMeshObject *>((objects[i]));
 
 		glm::mat4 &m = model->GetTransform().GetTransformMatrix();
 		glm::mat4 mvp = p * v * m * glm::mat4(1.0);
@@ -272,10 +337,12 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 		glUniformMatrix4fv(uLocM, 1, GL_FALSE, glm::value_ptr(m));
 		glUniformMatrix4fv(uLocV, 1, GL_FALSE, glm::value_ptr(v));
 		glUniformMatrix4fv(uLocP, 1, GL_FALSE, glm::value_ptr(p));
-		glUniform3fv(uLocE, 1, glm::value_ptr(camera.GetTransform().Position()));
+		glUniform1i(uLocObjVariant, model->GetVariant());
 
 		const GLMesh & mesh = model->Mesh();
 		const std::vector<tiny_gl::GLMesh::group_t> & groups = mesh.Groups();
+		const std::vector<float> & glowCoffs = mesh.GlowCoffs();
+
 		for (int j = 0; j < groups.size(); j++)
 		{
 			const tiny_gl::GLMesh::group_t & group = groups[j];
@@ -285,6 +352,9 @@ void RenderSponza(const GLShaderProgram & program, const GLScene & scene)
 			glEnableVertexAttribArray(1);
 			glEnableVertexAttribArray(2);
 			glEnableVertexAttribArray(3);
+
+			// Glow coff
+			glUniform1f(uLocGlowIntensity, glowCoffs[j]);
 
 			for (int k = 0; k < group.indexGroups.size(); k++)
 			{
@@ -354,7 +424,7 @@ void RenderShadow(const GLScene & scene, glm::mat4 & lightSpaceMatrix)
 	const std::vector<GLObject *> & objects = scene.GetObjects();
 	for (int i = 0; i < objects.size(); i++)
 	{
-		GLTangentMeshObject * model = static_cast<GLTangentMeshObject *>((objects[i]));
+		GLMeshObject * model = static_cast<GLMeshObject *>((objects[i]));
 
 		glm::mat4 &m = model->GetTransform().GetTransformMatrix();
 		glUniformMatrix4fv(gShadowShaderProg.GetLocation("model"), 1, GL_FALSE, glm::value_ptr(m));
@@ -381,6 +451,52 @@ void RenderShadow(const GLScene & scene, glm::mat4 & lightSpaceMatrix)
 	gShadowFrameBuffer.Unbind();
 	glCullFace(GL_BACK);
 	glDisable(GL_CULL_FACE);
+}
+
+void RenderFBO(const GLShaderProgram & program, const GLFrameBufferObject & fbo)
+{
+	std::vector<GLuint> textures = fbo.GetTextures();
+	for (int i = 0; i < textures.size(); i++)
+	{
+		char buff[64];
+		sprintf(buff, "tex%d", i);
+		glActiveTexture(GL_TEXTURE0 + i);
+		glUniform1i(program.GetLocation(buff), i);
+		glBindTexture(GL_TEXTURE_2D, textures[i]);
+	}
+
+	fbo.BindVAO();
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	glBindVertexArray(0);
+}
+
+void RenderWaterFBO(const GLShaderProgram & program, const GLFrameBufferObject & fbo)
+{
+	std::vector<GLuint> textures = fbo.GetTextures();
+	for (int i = 0; i < textures.size(); i++)
+	{
+		char buff[64];
+		sprintf(buff, "tex%d", i);
+		glActiveTexture(GL_TEXTURE0 + i);
+		glUniform1i(program.GetLocation(buff), i);
+		glBindTexture(GL_TEXTURE_2D, textures[i]);
+	}
+
+	glActiveTexture(GL_TEXTURE3);
+	glUniform1i(program.GetLocation("tex3"), 3);
+	glBindTexture(GL_TEXTURE_2D, gReflectionFrameBuffer.GetTextures()[0]);
+
+	glActiveTexture(GL_TEXTURE4);
+	glUniform1i(program.GetLocation("waterDuDv"), 4);
+	glBindTexture(GL_TEXTURE_2D, gWaterConfig.waterDuDv);
+
+	GLuint uLocT = program.GetLocation("time");
+	float time = glutGet(GLUT_ELAPSED_TIME);
+	glUniform1f(uLocT, time * 0.00003);
+
+	fbo.BindVAO();
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	glBindVertexArray(0);
 }
 
 void RenderDebugDepthMap()
@@ -444,22 +560,30 @@ void SetupAA(bool enable)
 	}
 }
 
-void RenderFBO(const GLShaderProgram & program, const GLFrameBufferObject & fbo)
+void RenderReflection(const GLShaderProgram & program, const GLScene & scene)
 {
-	std::vector<GLuint> textures = fbo.GetTextures();
-	for (int i = 0; i < textures.size(); i++)
-	{
-		char buff[64];
-		sprintf(buff, "tex%d", i);
-		glActiveTexture(GL_TEXTURE0 + i);
-		glUniform1i(program.GetLocation(buff), i);
-		glBindTexture(GL_TEXTURE_2D, textures[i]);
-	}
-	
-	fbo.BindVAO();
-	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	glBindVertexArray(0);
+	static float gWaterPlaneHeight = 5.0f;
+
+	glEnable(GL_CLIP_DISTANCE0);
+
+	GLCamera & camera = scene.GetCamera();
+
+	float dis = 2 * (camera.GetTransform().Position().y - (gWaterPlaneHeight));
+
+	glm::vec3 rotate = camera.GetTransform().EulerAngle();
+	float angle = rotate.x * 57.2957795;
+
+	camera.GetTransform().Translate(glm::vec3(0, -dis, 0));
+	camera.GetTransform().RotateEuler(glm::vec3(-2 * angle, 0, 0));
+
+	RenderSponza(program, scene, 1);
+
+	camera.GetTransform().RotateEuler(glm::vec3(2 * angle, 0, 0));
+	camera.GetTransform().Translate(glm::vec3(0, dis, 0));
+
+	glDisable(GL_CLIP_DISTANCE0);
 }
+
 
 void SetupShaderProgram()
 {
@@ -470,25 +594,42 @@ void SetupShaderProgram()
 
 	gSceneShaderProg = GLShaderProgram::LoadWithSeries(SCENE, "scene");
 	gSceneShaderProg.Use();
-	gSceneShaderProg.SetRenderFunction(RenderSponza);
 
 	gShadowShaderProg = GLShaderProgram::LoadWithSeries(SCENE, "shadow");
-	gOminiShadowShaderProg = GLShaderProgram::LoadWithSeries(SCENE, "shadow_omini", BIT_VS | BIT_FS | BIT_GS);
-
 	gShadowFrameBuffer.Init(GLFrameBuffer::DEPTH, 1, gSceneShaderSetting.shadow_width, gSceneShaderSetting.shadow_height);
+	gOminiShadowShaderProg = GLShaderProgram::LoadWithSeries(SCENE, "shadow_omini", BIT_VS | BIT_FS | BIT_GS);
 	gOminiShadowFrameBuffer.Init(GLFrameBuffer::DEPTH_CUBE, 1, gSceneShaderSetting.shadow_width, gSceneShaderSetting.shadow_height);
 	
 	gShadowVisualizer.Init(1, gSceneShaderSetting.shadow_width, gSceneShaderSetting.shadow_height);
 	gShadowVisualizerProg = GLShaderProgram::LoadWithSeries(SCENE, "depth", BIT_VS | BIT_FS);
+
+	SetupWaterTexture();
+	gReflectProg = GLShaderProgram::LoadWithSeries(SCENE, "scene");
+	gReflectProg.SetRenderFunction(RenderReflection);
+	gReflectionFrameBuffer.Init(4, wndWidth, wndHeight);
+
+	gWaterProg = GLShaderProgram::LoadWithSeries(FBO, "water");
+	gWaterProg.SetFrameBufferRenderFunction(RenderWaterFBO);
+	gWaterFrameBuffer.Init(4, wndWidth, wndHeight);
+
+	gGlowProg = GLShaderProgram::LoadWithSeries(FBO, "glow");
+	gGlowProg.SetFrameBufferRenderFunction(RenderFBO);
+	gGlowFrameBuffer.Init(3, wndWidth, wndHeight);
 }
 
 void SetupScene()
 {
 	gScene.CreatePerspectiveCamera(60.0f, 0.3f, 10000.0f, (wndWidth / wndHeight));
 	gScene.CreateTangentMeshObject("sponza.obj");
-	int knight_id = gScene.CreateTangentMeshObject("knight.obj");
-	gScene.GetGLObject(knight_id).GetTransform().ScaleTo(glm::vec3(10.0, 10.0, 10.0));
+	//int knight_id = gScene.CreateTangentMeshObject("knight.obj");
+	//gScene.GetGLObject(knight_id).GetTransform().ScaleTo(glm::vec3(10.0, 10.0, 10.0));
 	//gScene.GetGLObject(knight_id).GetTransform().TranslateTo(glm::vec3(.0, 1500.0, 0.0));
+
+	int pnum = gScene.CreateTangentMeshObject("WaterPlane.obj");
+	GLObject & p = gScene.GetGLObject(pnum);
+	p.SetVariant(1);
+	p.GetTransform().Scale(glm::vec3(100.0, 1.0, 100.0));
+	p.GetTransform().Translate(glm::vec3(0.0, gWaterConfig.waterPlaneHeight, 0.0));
 
 	gScene.CreateDirectionalLight(
 		glm::vec3(0.01f, 5000.0f, 0.0f), 
@@ -505,7 +646,8 @@ void SetupScene()
 		0.002f,
 		0.0f);
 
-	gScene.GetCamera().GetTransform().TranslateTo(glm::vec3(0, 0, 0));
+	gScene.GetCamera().GetTransform().TranslateTo(glm::vec3(-100, 200, 0));
+	gScene.GetCamera().GetTransform().RotateEuler(glm::vec3(45, 0, 0));
 
 	const char *skybox_filenames[6] = {
 		"right.jpg",
@@ -517,6 +659,12 @@ void SetupScene()
 	};
 
 	gScene.CreateSkybox(std::vector<std::string>(skybox_filenames, skybox_filenames + 6));
+
+	GLTangentMeshObject & g = (GLTangentMeshObject&)gScene.GetGLObject(0);
+	GLMesh & mesh = g.Mesh();
+	for (int i = 11; i < 20; i++) {
+		mesh.SetupGlow(i, 0.08);
+	}
 }
 
 void SpecialKeyboard(int key, int x, int y)
@@ -568,4 +716,47 @@ void SpecialKeyboard(int key, int x, int y)
 	default:
 		break;
 	}
+}
+
+void SetupWaterTexture() {
+
+	ILuint ilDuDvMap;
+	ilGenImages(1, &ilDuDvMap);
+	ilBindImage(ilDuDvMap);
+	if (ilLoadImage("waterDUDV.png") && ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE)) {
+		unsigned char *data = new unsigned char[ilGetInteger(IL_IMAGE_WIDTH) * ilGetInteger(IL_IMAGE_HEIGHT) * 4];
+		ilCopyPixels(0, 0, 0, ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 1, IL_RGBA, IL_UNSIGNED_BYTE, data);
+
+		glGenTextures(1, &gWaterConfig.waterDuDv);
+		glBindTexture(GL_TEXTURE_2D, gWaterConfig.waterDuDv);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+		delete[] data;
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+	}
+	else {
+		printf("GO HELL !");
+	}
+
+	ilDeleteImages(1, &ilDuDvMap);
+
+}
+
+void BindScreenFrameBuffer()
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, wndWidth, wndHeight);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }

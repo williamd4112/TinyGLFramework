@@ -2,7 +2,7 @@
 
 
 
-tiny_gl::GLAnimatedMeshObject::GLAnimatedMeshObject()
+tiny_gl::GLAnimatedMeshObject::GLAnimatedMeshObject(): GLObject(TYPE_ANIMMESHOBJ)
 {
 }
 

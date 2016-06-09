@@ -10,10 +10,10 @@
 #define VERTEX_ATTR_NORMAL 1
 #define VERTEX_ATTR_TEXCOORD 2
 
-tiny_gl::GLMeshObject::GLMeshObject()
+tiny_gl::GLMeshObject::GLMeshObject(): 
+	GLObject(TYPE_MESHOBJ)
 {
 }
-
 
 tiny_gl::GLMeshObject::~GLMeshObject()
 {

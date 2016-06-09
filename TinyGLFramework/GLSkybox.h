@@ -14,6 +14,8 @@ namespace tiny_gl
 
 		void Load(std::vector<std::string> & filenames);
 		void Render(glm::vec3 cameraPosition, glm::mat4 & viewMatrix, glm::mat4 & projMatrix);
+		void BindVAO() { glBindVertexArray(skyboxVAO); }
+		GLuint GetTextureID() { return mTexture; }
 		void initShader();
 	private:
 		GLuint skyboxVAO, skyboxVBO;

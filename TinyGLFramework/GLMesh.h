@@ -50,13 +50,16 @@ namespace tiny_gl
 		const std::vector<group_t> & Groups() const { return mGroups; }
 		const std::vector<texture_group_t> & Textures() const { return mTextureGroups; }
 		const std::vector<tinyobj::material_t> & Materials() const { return mMaterials; }
+		const std::vector<float> & GlowCoffs() const { return mGlowCoffs; }
 
+		void SetupGlow(int index, float power);
 	protected:
 
 		std::vector<tinyobj::shape_t> mShapes;
 		std::vector<group_t> mGroups;
 		std::vector<tinyobj::material_t> mMaterials;
 		std::vector<texture_group_t> mTextureGroups;
+		std::vector<float> mGlowCoffs;
 
 		virtual void Load(std::string filepath);
 		virtual void load_file(std::string filepath);

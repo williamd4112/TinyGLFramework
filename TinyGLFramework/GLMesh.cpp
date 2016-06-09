@@ -9,6 +9,11 @@ tiny_gl::GLMesh::~GLMesh()
 {
 }
 
+void tiny_gl::GLMesh::SetupGlow(int index, float power)
+{
+	mGlowCoffs[index] = power;
+}
+
 void tiny_gl::GLMesh::Load(std::string filepath)
 {
 	std::string err;
@@ -20,6 +25,7 @@ void tiny_gl::GLMesh::Load(std::string filepath)
 
 	// Allocate groups
 	mGroups.resize(mShapes.size());
+	mGlowCoffs.resize(mShapes.size());
 
 	// For Each Shape (or Mesh, Object)
 	for (int i = 0; i < mShapes.size(); i++)

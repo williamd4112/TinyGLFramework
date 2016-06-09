@@ -17,7 +17,7 @@ namespace tiny_gl
 		void SetIndirect();
 		void Render(GLShaderProgram & program);
 		bool HasIndirect();
-		const GLMesh & Mesh() { if (mMesh == nullptr) throw tiny_gl_exception_t("Mesh not loaded");  return *mMesh; }
+		GLMesh & Mesh() { if (mMesh == nullptr) throw tiny_gl_exception_t("Mesh not loaded");  return *mMesh; }
 	protected:
 		GLMesh *mMesh;		
 		bool mHasIndirect;
